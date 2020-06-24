@@ -1,0 +1,38 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+}
+
+plugins {
+    id "org.jetbrains.intellij" version "0.4.21"
+}
+
+apply plugin: 'java'
+
+sourceCompatibility = "1.8"
+targetCompatibility = "1.8"
+
+tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
+
+repositories {
+    mavenCentral()
+}
+
+runIde {
+    minHeapSize = "512m";
+    maxHeapSize = "1G";
+
+    //jvmArgs '-Dsun.java2d.uiScale.enabled=true'
+    //jvmArgs "-agentpath:C:/yjpagent.dll"
+    jvmArgs "-Didea.ProcessCanceledException=disabled"
+}
+
+intellij {
+    type 'IC'
+    version '201.7846.76'
+    downloadSources true
+    updateSinceUntilBuild = false
+
+    plugins = ['org.jetbrains.kotlin', 'com.intellij.java', 'PsiViewer:201.6251.22-EAP-SNAPSHOT.3']
+}

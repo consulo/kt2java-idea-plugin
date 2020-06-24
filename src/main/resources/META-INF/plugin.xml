@@ -1,0 +1,18 @@
+<idea-plugin>
+	<id>consulo.internal.idea.mjga</id>
+	<name>Make Java Great Again</name>
+	<version>1.0</version>
+	<vendor>consulo.io</vendor>
+	<depends>org.jetbrains.kotlin</depends>
+	<actions>
+		<action id="MJGA.ConvertToJavaAction" class="consulo.internal.mjga.idea.actions.ConvertToJavaAction">
+			<add-to-group anchor="last" group-id="ProjectViewPopupMenu"/>
+		</action>
+	</actions>
+
+	<extensions defaultExtensionNs="com.intellij">
+		<toolWindow id="JavaCode" anchor="right" icon="AllIcons.Toolwindows.ToolWindowRun"
+					factoryClass="consulo.internal.mjga.idea.toolWindow.JavaToolWindowFactory"/>
+
+	</extensions>
+</idea-plugin>
