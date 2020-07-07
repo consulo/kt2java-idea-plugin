@@ -235,18 +235,12 @@ public class Converter
 		}
 
 		List<PsiMethod> ownMethods = ((PsiExtensibleClass) javaWrapper).getOwnMethods();
-		for(PsiMethod method : ownMethods)
+		for(PsiMethod methodOrConstructor : ownMethods)
 		{
-			if(method.isConstructor())
-			{
-				// todo
-				continue;
-			}
-
 			KtExpression body = null;
-			if(method instanceof KtUltraLightMethodForSourceDeclaration)
+			if(methodOrConstructor instanceof KtUltraLightMethodForSourceDeclaration)
 			{
-				FunctionDescriptor descriptor = getMethodDescriptor(method);
+				FunctionDescriptor descriptor = getMethodDescriptor(methodOrConstructor);
 
 				if(descriptor != null)
 				{
@@ -274,17 +268,23 @@ public class Converter
 				System.out.println();
 			}
 
-			String methodName = safeName(method.getName());
-			MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName);
-			methodBuilder.addModifiers(convertModifiers(method, isInterface));
-			methodBuilder.returns(convertType(method.getReturnType()));
+			boolean isConstructor = methodOrConstructor.isConstructor();
 
-			PsiParameter[] parameters = method.getParameterList().getParameters();
+			String methodName = safeName(methodOrConstructor.getName());
+			MethodSpec.Builder methodBuilder = isConstructor ? MethodSpec.constructorBuilder() : MethodSpec.methodBuilder(methodName);
+			methodBuilder.addModifiers(convertModifiers(methodOrConstructor, isInterface));
+			if(!isConstructor)
+			{
+				methodBuilder.returns(convertType(methodOrConstructor.getReturnType()));
+			}
+
+			PsiParameter[] parameters = methodOrConstructor.getParameterList().getParameters();
 			for(PsiParameter parameter : parameters)
 			{
 				methodBuilder.addParameter(convertType(parameter.getType()), safeName(parameter.getName()));
 			}
 
+			ClassName thisTypeRef = ClassName.bestGuess(javaWrapper.getQualifiedName());
 			if(body != null)
 			{
 				GeneratedElement generatedElement = KtExpressionConveter.convert(body);
@@ -304,6 +304,64 @@ public class Converter
 					methodBuilder.addCode(CodeBlock.of("return $T.hash($L);", Objects.class, CodeBlock.join(params, ", ")));
 				}
 
+				if("equals".equals(methodName) && parameters.length == 1 && parameters[0].getType().equalsToText(CommonClassNames.JAVA_LANG_OBJECT))
+				{
+					methodBuilder.addCode(CodeBlock.of("if(other == this) return true;\n"));
+
+					methodBuilder.addCode(CodeBlock.of("if(other == null || other.getClass() != this.getClass()) return false;\n"));
+
+					for(KtParameter param : primaryConstructorParameters)
+					{
+						methodBuilder.addCode("if(!$T.equals($L, (($T) other).$L)) return false;\n", Objects.class, param.getName(), thisTypeRef, param.getName());
+					}
+
+					methodBuilder.addCode("return true;");
+				}
+
+				if("toString".equals(methodName) && parameters.length == 0)
+				{
+					methodBuilder.addCode("$T __builder = new $T();\n", StringBuilder.class, StringBuilder.class);
+					methodBuilder.addCode("__builder.append(\"$T(\");\n", thisTypeRef);
+
+					int i = 0;
+					for(KtParameter primaryConstructorParameter : primaryConstructorParameters)
+					{
+						StringBuilder param = new StringBuilder("__builder.append(\"");
+						param.append(primaryConstructorParameter.getName());
+						param.append("=\").append(");
+						param.append(primaryConstructorParameter.getName());
+						param.append(")");
+
+						i ++;
+						
+						if(i != primaryConstructorParameters.size())
+						{
+							param.append(".append(\",\")");
+						}
+					
+						param.append(";\n");
+
+						methodBuilder.addCode(param.toString());
+					}
+					methodBuilder.addCode("__builder.append(\")\");\n", thisTypeRef);
+					methodBuilder.addCode(CodeBlock.of("return __builder.toString();"));
+				}
+
+				if(isConstructor)
+				{
+					for(PsiParameter parameter : parameters)
+					{
+						methodBuilder.addCode(CodeBlock.of("this.$L = $L;\n", parameter.getName(), parameter.getName()));
+					}
+				}
+
+				if(methodName.equals("copy"))
+				{
+					List<CodeBlock> params = primaryConstructorParameters.stream().map(it -> CodeBlock.of("$L", safeName(it.getName()))).collect(Collectors.toList());
+
+					methodBuilder.addCode(CodeBlock.of("return new $T($L);", thisTypeRef, CodeBlock.join(params, ", ")));
+				}
+
 				String component = "component";
 				if(methodName.startsWith(component))
 				{
@@ -317,9 +375,17 @@ public class Converter
 					if(propertyName != null)
 					{
 						Optional<KtParameter> optional = primaryConstructorParameters.stream().filter(it -> propertyName.equals(it.getName())).findFirst();
-						if(optional.isPresent())
+
+						if(methodName.startsWith("get") || methodName.startsWith("is"))
 						{
-							methodBuilder.addCode(CodeBlock.of("return $L;", propertyName));
+							if(optional.isPresent())
+							{
+								methodBuilder.addCode(CodeBlock.of("return $L;", propertyName));
+							}
+						}
+						else
+						{
+							methodBuilder.addCode(CodeBlock.of("this.$L = $L;", propertyName, propertyName));
 						}
 					}
 				}
@@ -380,6 +446,16 @@ public class Converter
 		if(owner.hasModifier(JvmModifier.PUBLIC))
 		{
 			modifiers.add(Modifier.PUBLIC);
+		}
+
+		if(owner.hasModifier(JvmModifier.PRIVATE))
+		{
+			modifiers.add(Modifier.PRIVATE);
+		}
+
+		if(owner.hasModifier(JvmModifier.FINAL))
+		{
+			modifiers.add(Modifier.FINAL);
 		}
 
 		if(owner.hasModifier(JvmModifier.ABSTRACT))
