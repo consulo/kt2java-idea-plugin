@@ -1,13 +1,5 @@
 package consulo.internal.mjga.idea.actions;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.idea.KotlinFileType;
-import org.jetbrains.kotlin.psi.KtFile;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
@@ -20,6 +12,14 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import consulo.internal.mjga.idea.convert.ConvertContext;
 import consulo.internal.mjga.idea.convert.Converter;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.kotlin.idea.KotlinFileType;
+import org.jetbrains.kotlin.psi.KtFile;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author VISTALL
@@ -62,7 +62,7 @@ public class ConvertToJavaAction extends AnAction
 			@Override
 			public void run(@NotNull ProgressIndicator indicator)
 			{
-				ReadAction.run(() ->
+				ConvertContext convertContext = ReadAction.compute(() ->
 				{
 					PsiManager psiManager = PsiManager.getInstance(project);
 
@@ -76,9 +76,11 @@ public class ConvertToJavaAction extends AnAction
 						}
 					}
 
-					ConvertContext convertContext = new ConvertContext(project, vfToPsiFile);
-					Converter.run(convertContext);
+					ConvertContext context = new ConvertContext(project, vfToPsiFile);
+					Converter.run(context);
+					return context;
 				});
+				Converter.writeFiles(convertContext);
 			}
 		}.queue();
 	}

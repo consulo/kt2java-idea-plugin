@@ -30,9 +30,13 @@ runIde {
 
 intellij {
     type 'IC'
-    version '201.7846.76'
+    version 'LATEST-EAP-SNAPSHOT'
     downloadSources true
     updateSinceUntilBuild = false
 
-    plugins = ['org.jetbrains.kotlin', 'com.intellij.java', 'PsiViewer:201.6251.22-EAP-SNAPSHOT.3']
+    plugins = ['org.jetbrains.kotlin', 'com.intellij.java']
+}
+
+dependencies {
+    compile group: 'com.squareup', name: 'javapoet', version: '1.13.0'
 }

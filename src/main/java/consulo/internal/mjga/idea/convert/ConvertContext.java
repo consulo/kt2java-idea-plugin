@@ -1,10 +1,10 @@
 package consulo.internal.mjga.idea.convert;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.openapi.vfs.VirtualFile;
+import consulo.internal.mjga.idea.convert.generate.JavaSourceClassType;
+import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.caches.resolve.KotlinCacheService;
 import org.jetbrains.kotlin.idea.resolve.ResolutionFacade;
@@ -14,11 +14,12 @@ import org.jetbrains.kotlin.psi.KtClassOrObject;
 import org.jetbrains.kotlin.psi.KtFile;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.openapi.vfs.VirtualFile;
-import consulo.internal.mjga.idea.convert.generate.JavaSourceClassType;
-import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * @author VISTALL
@@ -91,5 +92,18 @@ public class ConvertContext
 	public BindingContext getBindingContext(KtFile file)
 	{
 		return myContextMap.computeIfAbsent(file, f -> myResolutionFacade.analyze(f, BodyResolveMode.FULL));
+	}
+
+	public void forEach(Consumer<KtToJavaClassBinder> binder)
+	{
+		for(KtToJavaClassBinder classBinder : myFileBinder.values())
+		{
+			binder.accept(classBinder);
+		}
+
+		for(KtToJavaClassBinder classBinder : myClassBinder.values())
+		{
+			binder.accept(classBinder);
+		}
 	}
 }
