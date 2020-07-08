@@ -148,7 +148,12 @@ public class Converter
 				break;
 		}
 
-		ReadAction.run(() -> convert(builder, sourceElement, binder.getJavaWrapper(), isInterface, bindingContext));
+		boolean containsAnyChild = ReadAction.compute(() -> convert(builder, sourceElement, binder.getJavaWrapper(), isInterface, bindingContext));
+
+		if(!containsAnyChild)
+		{
+			return;
+		}
 
 		JavaFile.Builder fileBuilder = JavaFile.builder(binder.getPackageName(), builder.build());
 
@@ -176,12 +181,14 @@ public class Converter
 		});
 	}
 
-	private static void convert(TypeSpec.Builder builder, KtElement sourceElement, PsiClass javaWrapper, boolean isInterface, BindingContext bindingContext)
+	private static boolean convert(TypeSpec.Builder builder, KtElement sourceElement, PsiClass javaWrapper, boolean isInterface, BindingContext bindingContext)
 	{
 		if(!(javaWrapper instanceof PsiExtensibleClass))
 		{
-			return;
+			return false;
 		}
+
+		boolean hasAnyChild = false;
 
 		builder.addModifiers(convertModifiers(javaWrapper));
 
@@ -211,6 +218,8 @@ public class Converter
 		List<PsiField> fields = ((PsiExtensibleClass) javaWrapper).getOwnFields();
 		for(PsiField field : fields)
 		{
+			hasAnyChild = true;
+
 			FieldSpec.Builder fieldBuilder = FieldSpec.builder(convertType(field.getType()), safeName(field.getName()), convertModifiers(field, isInterface));
 
 			if(field instanceof KtLightFieldForSourceDeclarationSupport)
@@ -234,6 +243,8 @@ public class Converter
 		List<PsiMethod> ownMethods = ((PsiExtensibleClass) javaWrapper).getOwnMethods();
 		for(PsiMethod methodOrConstructor : ownMethods)
 		{
+			hasAnyChild = true;
+
 			KtExpression body = null;
 			if(methodOrConstructor instanceof KtUltraLightMethodForSourceDeclaration)
 			{
@@ -389,6 +400,8 @@ public class Converter
 
 			builder.addMethod(methodBuilder.build());
 		}
+
+		return hasAnyChild;
 	}
 
 	private static FunctionDescriptor getMethodDescriptor(PsiMethod method)
