@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.CallableDescriptor;
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
+import org.jetbrains.kotlin.descriptors.SourceElement;
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
 import org.jetbrains.kotlin.lexer.KtTokens;
@@ -22,6 +23,8 @@ import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedValueArgument;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
+import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
+import org.jetbrains.kotlin.resolve.source.KotlinSourceElement;
 import org.jetbrains.kotlin.types.KotlinType;
 
 import java.util.*;
@@ -80,11 +83,35 @@ public class KtExpressionConveter extends KtVisitorVoid
 	@Override
 	public void visitDotQualifiedExpression(KtDotQualifiedExpression expression)
 	{
-		GeneratedElement receiverExpression = convertNonnull(expression.getReceiverExpression());
+		KtExpression receiver = expression.getReceiverExpression();
 
-		GeneratedElement selectorExpression = convertNonnull(expression.getSelectorExpression());
+		GeneratedElement receiverGenerate = convertNonnull(receiver);
 
-		myGeneratedElement = new QualifiedExpression(receiverExpression, selectorExpression);
+		GeneratedElement selectorGenerate = convertNonnull(expression.getSelectorExpression());
+
+		if(receiver instanceof KtNameReferenceExpression)
+		{
+			BindingContext context = ResolutionUtils.analyze(receiver);
+
+			DeclarationDescriptor receiverResult = context.get(BindingContext.REFERENCE_TARGET, (KtNameReferenceExpression) receiver);
+
+			if(receiverResult instanceof LazyClassDescriptor)
+			{
+				SourceElement source = ((LazyClassDescriptor) receiverResult).getSource();
+
+				if(source instanceof KotlinSourceElement)
+				{
+					KtElement psi = ((KotlinSourceElement) source).getPsi();
+
+					if(psi instanceof KtObjectDeclaration)
+					{
+						receiverGenerate = new QualifiedExpression(receiverGenerate, new ReferenceExpression("INSTANCE"));
+					}
+				}
+			}
+		}
+
+		myGeneratedElement = new QualifiedExpression(receiverGenerate, selectorGenerate);
 	}
 
 	@Override

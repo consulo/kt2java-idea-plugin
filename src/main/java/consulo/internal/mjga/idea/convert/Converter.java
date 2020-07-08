@@ -192,14 +192,14 @@ public class Converter
 
 		builder.addModifiers(convertModifiers(javaWrapper));
 
-		KtClass ktClass = null;
+		KtClassOrObject ktClassOrObject = null;
 		if(javaWrapper instanceof KtLightElement)
 		{
 			KtElement kotlinOrigin = ((KtLightElement) javaWrapper).getKotlinOrigin();
 
-			if(kotlinOrigin instanceof KtClass)
+			if(kotlinOrigin instanceof KtClassOrObject)
 			{
-				ktClass = (KtClass) kotlinOrigin;
+				ktClassOrObject = (KtClassOrObject) kotlinOrigin;
 			}
 		}
 
@@ -214,6 +214,8 @@ public class Converter
 		{
 			builder.addSuperinterface(TypeConverter.convertJavaPsiType((PsiType) interfaceType));
 		}
+
+		ClassName thisTypeRef = ClassName.bestGuess(javaWrapper.getQualifiedName());
 
 		List<PsiField> fields = ((PsiExtensibleClass) javaWrapper).getOwnFields();
 		for(PsiField field : fields)
@@ -237,6 +239,12 @@ public class Converter
 					}
 				}
 			}
+
+			if(ktClassOrObject instanceof KtObjectDeclaration && "INSTANCE".equals(field.getName()))
+			{
+				fieldBuilder.initializer(CodeBlock.of("new $T()", thisTypeRef));
+			}
+
 			builder.addField(fieldBuilder.build());
 		}
 
@@ -291,7 +299,6 @@ public class Converter
 				methodBuilder.addParameter(TypeConverter.convertJavaPsiType(parameter.getType()), safeName(parameter.getName()));
 			}
 
-			ClassName thisTypeRef = ClassName.bestGuess(javaWrapper.getQualifiedName());
 			if(body != null)
 			{
 				GeneratedElement generatedElement = KtExpressionConveter.convert(body);
@@ -300,9 +307,9 @@ public class Converter
 					methodBuilder.addCode(generatedElement.generate());
 				}
 			}
-			else if(ktClass != null && ktClass.isData())
+			else if(ktClassOrObject instanceof KtClass && ((KtClass) ktClassOrObject).isData())
 			{
-				List<KtParameter> primaryConstructorParameters = ktClass.getPrimaryConstructorParameters();
+				List<KtParameter> primaryConstructorParameters = ktClassOrObject.getPrimaryConstructorParameters();
 
 				if("hashCode".equals(methodName) && parameters.length == 0)
 				{
