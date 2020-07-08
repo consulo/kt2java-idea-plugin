@@ -19,12 +19,12 @@ public class BlockStatement extends Statement
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
 		CodeBlock.Builder builder = CodeBlock.builder();
 		for(GeneratedElement generatedElement : myGeneratedElements)
 		{
-			builder.add(generatedElement.generate());
+			builder.add(generatedElement.generate(true));
 		}
 		return builder.build();
 	}

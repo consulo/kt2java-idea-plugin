@@ -19,8 +19,8 @@ public class StaticTypeReference extends Expression
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("$T.$L", myTypeName, myName);
+		return CodeBlock.of(wrap("$T.$L", needNewLine), myTypeName, myName);
 	}
 }

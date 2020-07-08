@@ -21,8 +21,8 @@ public class BinaryExpression extends Expression
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("$L $L $L", myLeft.generate(), myToken, myRight.generate());
+		return CodeBlock.of(wrap("$L $L $L", needNewLine), myLeft.generate(), myToken, myRight.generate());
 	}
 }

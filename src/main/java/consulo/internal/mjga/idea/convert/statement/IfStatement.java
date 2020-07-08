@@ -26,7 +26,7 @@ public class IfStatement extends Statement
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
 		CodeBlock.Builder builder = CodeBlock.builder();
 

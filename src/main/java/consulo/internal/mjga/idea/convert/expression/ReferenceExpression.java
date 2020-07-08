@@ -17,8 +17,8 @@ public class ReferenceExpression extends Expression
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("$L", Converter.safeName(myReferenceName));
+		return CodeBlock.of(wrap("$L", needNewLine), Converter.safeName(myReferenceName));
 	}
 }

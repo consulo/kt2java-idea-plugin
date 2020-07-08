@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
+import org.jetbrains.kotlin.resolve.calls.model.ResolvedValueArgument;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
 
 import java.util.ArrayList;
@@ -76,6 +77,33 @@ public class KtExpressionConveter extends KtVisitorVoid
 
 			myGeneratedElement = new ReferenceExpression(referencedName);
 		}
+	}
+
+	@Override
+	public void visitCallExpression(KtCallExpression expression)
+	{
+		GeneratedElement genCall = convertNonnull(myContext, expression.getCalleeExpression());
+
+		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression, BodyResolveMode.FULL);
+
+		if(call == null)
+		{
+			return;
+		}
+
+		List<GeneratedElement> args = new ArrayList<>();
+
+		List<ResolvedValueArgument> valueArgumentsByIndex = call.getValueArgumentsByIndex();
+
+		for(ResolvedValueArgument valueArgument : valueArgumentsByIndex)
+		{
+			for(ValueArgument argument : valueArgument.getArguments())
+			{
+				args.add(convertNonnull(myContext, argument.getArgumentExpression()));
+			}
+		}
+
+		myGeneratedElement = new MethodCallExpression(genCall, args);
 	}
 
 	@Override

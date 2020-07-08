@@ -16,8 +16,8 @@ public class ConstantExpression extends Expression
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("$L", myText);
+		return CodeBlock.of(wrap("$L", needNewLine), myText);
 	}
 }

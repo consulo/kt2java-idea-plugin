@@ -18,12 +18,12 @@ public class ReturnStatement extends Statement
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
 		if(myExpression != null)
 		{
-			return CodeBlock.of("return $L;\n", myExpression.generate());
+			return CodeBlock.of(wrap("return $L;", needNewLine), myExpression.generate());
 		}
-		return CodeBlock.of("return;\n");
+		return CodeBlock.of(wrap("return;", needNewLine));
 	}
 }

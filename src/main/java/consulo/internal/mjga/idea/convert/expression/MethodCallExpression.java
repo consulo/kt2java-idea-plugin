@@ -23,8 +23,8 @@ public class MethodCallExpression extends Expression
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("$L($L)", myCall.generate(), CodeBlock.join(myArguments.stream().map(GeneratedElement::generate).collect(Collectors.toList()), ", "));
+		return CodeBlock.of(wrap("$L($L)", needNewLine), myCall.generate(), CodeBlock.join(myArguments.stream().map(GeneratedElement::generate).collect(Collectors.toList()), ", "));
 	}
 }

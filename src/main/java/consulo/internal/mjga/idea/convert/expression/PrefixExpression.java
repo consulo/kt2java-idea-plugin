@@ -19,8 +19,8 @@ public class PrefixExpression extends Expression
 	}
 
 	@Override
-	public CodeBlock generate()
+	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("$L$L", myToken, myExpression.generate());
+		return CodeBlock.of(wrap("$L$L", needNewLine), myToken, myExpression.generate());
 	}
 }
