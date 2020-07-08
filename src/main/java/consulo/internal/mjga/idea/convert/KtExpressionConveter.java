@@ -4,6 +4,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.expression.*;
+import consulo.internal.mjga.idea.convert.library.FunctionRemapper;
 import consulo.internal.mjga.idea.convert.statement.BlockStatement;
 import consulo.internal.mjga.idea.convert.statement.IfStatement;
 import consulo.internal.mjga.idea.convert.statement.LocalVariableStatement;
@@ -176,6 +177,7 @@ public class KtExpressionConveter extends KtVisitorVoid
 				}
 			}
 
+			genCall = FunctionRemapper.remap(call, genCall);
 			myGeneratedElement = new MethodCallExpression(genCall, args);
 		}
 	}

@@ -28,4 +28,9 @@ public class BlockStatement extends Statement
 		}
 		return builder.build();
 	}
+
+	public List<GeneratedElement> getGeneratedElements()
+	{
+		return myGeneratedElements;
+	}
 }
