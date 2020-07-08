@@ -24,7 +24,7 @@ public class BlockStatement extends Statement
 		CodeBlock.Builder builder = CodeBlock.builder();
 		for(GeneratedElement generatedElement : myGeneratedElements)
 		{
-			builder.add(generatedElement.generate(true));
+			builder.add(generatedElement.wantSemicolon(true).generate(true));
 		}
 		return builder.build();
 	}

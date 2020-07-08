@@ -21,6 +21,11 @@ public abstract class GeneratedElement
 	@NotNull
 	public String wrap(String text, boolean needNewLine)
 	{
+		if(text.endsWith(";") || text.endsWith("\n"))
+		{
+			throw new UnsupportedOperationException();
+		}
+
 		StringBuilder builder = new StringBuilder(text);
 		if(myWantSemicolon && isAllowSemicolon())
 		{

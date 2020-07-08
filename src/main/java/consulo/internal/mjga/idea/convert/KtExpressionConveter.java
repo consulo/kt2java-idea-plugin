@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
 import org.jetbrains.kotlin.lexer.KtTokens;
+import org.jetbrains.kotlin.load.java.sam.SamConstructorDescriptor;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
@@ -22,10 +23,7 @@ import org.jetbrains.kotlin.resolve.calls.model.ResolvedValueArgument;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
 import org.jetbrains.kotlin.types.KotlinType;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * @author VISTALL
@@ -39,14 +37,6 @@ public class KtExpressionConveter extends KtVisitorVoid
 		KtExpressionConveter conveter = new KtExpressionConveter();
 		element.accept(conveter);
 		GeneratedElement generatedElement = conveter.myGeneratedElement;
-		if(generatedElement != null)
-		{
-			if(element.getParent() instanceof KtBlockExpression)
-			{
-				generatedElement = generatedElement.wantSemicolon(true);
-			}
-		}
-
 		return generatedElement;
 	}
 
@@ -64,12 +54,6 @@ public class KtExpressionConveter extends KtVisitorVoid
 		{
 			generatedElement = new ConstantExpression("\"unsupported\"");
 		}
-
-		if(element.getParent() instanceof KtBlockExpression)
-		{
-			generatedElement = generatedElement.wantSemicolon(true);
-		}
-
 		return generatedElement;
 	}
 
@@ -129,6 +113,26 @@ public class KtExpressionConveter extends KtVisitorVoid
 	}
 
 	@Override
+	public void visitStringTemplateExpression(KtStringTemplateExpression expression)
+	{
+		List<GeneratedElement> expressions = new ArrayList<>();
+
+		for(KtStringTemplateEntry entry : expression.getEntries())
+		{
+			if(entry instanceof KtStringTemplateEntryWithExpression)
+			{
+				expressions.add(convertNonnull(entry.getExpression()));
+			}
+			else
+			{
+				expressions.add(new ConstantExpression("\"" + entry.getText() + "\""));
+			}
+		}
+
+		myGeneratedElement = new StringBuilderExpression(expressions);
+	}
+
+	@Override
 	public void visitCallExpression(KtCallExpression expression)
 	{
 		GeneratedElement genCall = convertNonnull(expression.getCalleeExpression());
@@ -140,19 +144,40 @@ public class KtExpressionConveter extends KtVisitorVoid
 			return;
 		}
 
-		List<GeneratedElement> args = new ArrayList<>();
-
-		List<ResolvedValueArgument> valueArgumentsByIndex = call.getValueArgumentsByIndex();
-
-		for(ResolvedValueArgument valueArgument : valueArgumentsByIndex)
+		CallableDescriptor resultingDescriptor = call.getResultingDescriptor();
+		if(resultingDescriptor instanceof SamConstructorDescriptor)
 		{
-			for(ValueArgument argument : valueArgument.getArguments())
-			{
-				args.add(convertNonnull(argument.getArgumentExpression()));
-			}
-		}
+			List<? extends LambdaArgument> functionLiteralArguments = call.getCall().getFunctionLiteralArguments();
 
-		myGeneratedElement = new MethodCallExpression(genCall, args);
+			if(functionLiteralArguments.isEmpty())
+			{
+				return;
+			}
+
+			LambdaArgument lambdaArgument = functionLiteralArguments.get(0);
+
+			KtLambdaExpression lambdaExpression = lambdaArgument.getLambdaExpression();
+
+			KtBlockExpression bodyExpression = lambdaExpression.getBodyExpression();
+
+			myGeneratedElement = new LambdaExpression(Collections.emptyList(), convertNonnull(bodyExpression));
+		}
+		else
+		{
+			List<GeneratedElement> args = new ArrayList<>();
+
+			List<ResolvedValueArgument> valueArgumentsByIndex = call.getValueArgumentsByIndex();
+
+			for(ResolvedValueArgument valueArgument : valueArgumentsByIndex)
+			{
+				for(ValueArgument argument : valueArgument.getArguments())
+				{
+					args.add(convertNonnull(argument.getArgumentExpression()));
+				}
+			}
+
+			myGeneratedElement = new MethodCallExpression(genCall, args);
+		}
 	}
 
 	@Override
