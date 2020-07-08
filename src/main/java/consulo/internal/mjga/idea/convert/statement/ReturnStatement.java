@@ -22,8 +22,14 @@ public class ReturnStatement extends Statement
 	{
 		if(myExpression != null)
 		{
-			return CodeBlock.of(wrap("return $L;", needNewLine), myExpression.generate());
+			return CodeBlock.of(wrap("return $L", needNewLine), myExpression.generate());
 		}
-		return CodeBlock.of(wrap("return;", needNewLine));
+		return CodeBlock.of(wrap("return", needNewLine));
+	}
+
+	@Override
+	protected boolean isAllowSemicolon()
+	{
+		return true;
 	}
 }

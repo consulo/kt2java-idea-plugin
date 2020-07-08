@@ -7,12 +7,12 @@ import com.squareup.javapoet.TypeName;
  * @author VISTALL
  * @since 2020-07-08
  */
-public class StaticTypeReference extends Expression
+public class StaticTypeReferenceExpression extends Expression
 {
 	private TypeName myTypeName;
 	private String myName;
 
-	public StaticTypeReference(TypeName typeName, String name)
+	public StaticTypeReferenceExpression(TypeName typeName, String name)
 	{
 		myTypeName = typeName;
 		myName = name;

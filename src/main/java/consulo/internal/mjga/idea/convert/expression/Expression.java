@@ -8,4 +8,9 @@ import consulo.internal.mjga.idea.convert.GeneratedElement;
  */
 public abstract class Expression extends GeneratedElement
 {
+	@Override
+	protected boolean isAllowSemicolon()
+	{
+		return true;
+	}
 }

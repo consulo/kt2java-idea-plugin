@@ -206,13 +206,13 @@ public class Converter
 		JvmReferenceType superClass = javaWrapper.getSuperClassType();
 		if(superClass != null)
 		{
-			builder.superclass(convertType((PsiType) superClass));
+			builder.superclass(TypeConverter.convertJavaPsiType((PsiType) superClass));
 		}
 
 		JvmReferenceType[] interfaceTypes = javaWrapper.getInterfaceTypes();
 		for(JvmReferenceType interfaceType : interfaceTypes)
 		{
-			builder.addSuperinterface(convertType((PsiType) interfaceType));
+			builder.addSuperinterface(TypeConverter.convertJavaPsiType((PsiType) interfaceType));
 		}
 
 		List<PsiField> fields = ((PsiExtensibleClass) javaWrapper).getOwnFields();
@@ -220,7 +220,7 @@ public class Converter
 		{
 			hasAnyChild = true;
 
-			FieldSpec.Builder fieldBuilder = FieldSpec.builder(convertType(field.getType()), safeName(field.getName()), convertModifiers(field, isInterface));
+			FieldSpec.Builder fieldBuilder = FieldSpec.builder(TypeConverter.convertJavaPsiType(field.getType()), safeName(field.getName()), convertModifiers(field, isInterface));
 
 			if(field instanceof KtLightFieldForSourceDeclarationSupport)
 			{
@@ -232,7 +232,7 @@ public class Converter
 
 					if(initializer != null)
 					{
-						GeneratedElement codeBlock = KtExpressionConveter.convertNonnull(bindingContext, initializer);
+						GeneratedElement codeBlock = KtExpressionConveter.convertNonnull(initializer);
 						fieldBuilder.initializer(codeBlock.generate());
 					}
 				}
@@ -282,19 +282,19 @@ public class Converter
 			methodBuilder.addModifiers(convertModifiers(methodOrConstructor, isInterface));
 			if(!isConstructor)
 			{
-				methodBuilder.returns(convertType(methodOrConstructor.getReturnType()));
+				methodBuilder.returns(TypeConverter.convertJavaPsiType(methodOrConstructor.getReturnType()));
 			}
 
 			PsiParameter[] parameters = methodOrConstructor.getParameterList().getParameters();
 			for(PsiParameter parameter : parameters)
 			{
-				methodBuilder.addParameter(convertType(parameter.getType()), safeName(parameter.getName()));
+				methodBuilder.addParameter(TypeConverter.convertJavaPsiType(parameter.getType()), safeName(parameter.getName()));
 			}
 
 			ClassName thisTypeRef = ClassName.bestGuess(javaWrapper.getQualifiedName());
 			if(body != null)
 			{
-				GeneratedElement generatedElement = KtExpressionConveter.convert(bindingContext, body);
+				GeneratedElement generatedElement = KtExpressionConveter.convert(body);
 				if(generatedElement != null)
 				{
 					methodBuilder.addCode(generatedElement.generate());
@@ -478,73 +478,5 @@ public class Converter
 		}
 
 		return modifiers.toArray(new Modifier[0]);
-	}
-
-	private static TypeName convertType(PsiType psiType)
-	{
-		if(psiType.equals(PsiType.VOID))
-		{
-			return TypeName.VOID;
-		}
-
-		if(psiType.equals(PsiType.INT))
-		{
-			return TypeName.INT;
-		}
-
-		if(psiType.equals(PsiType.SHORT))
-		{
-			return TypeName.SHORT;
-		}
-
-		if(psiType.equals(PsiType.BYTE))
-		{
-			return TypeName.BYTE;
-		}
-
-		if(psiType.equals(PsiType.FLOAT))
-		{
-			return TypeName.FLOAT;
-		}
-
-		if(psiType.equals(PsiType.CHAR))
-		{
-			return TypeName.CHAR;
-		}
-
-		if(psiType.equals(PsiType.DOUBLE))
-		{
-			return TypeName.DOUBLE;
-		}
-
-		if(psiType.equals(PsiType.BOOLEAN))
-		{
-			return TypeName.BOOLEAN;
-		}
-
-		if(psiType instanceof PsiClassType)
-		{
-			PsiType[] parameters = ((PsiClassType) psiType).getParameters();
-			if(parameters.length > 0)
-			{
-				ClassName typeName = (ClassName) convertType(((PsiClassType) psiType).rawType());
-
-				List<TypeName> mapArguments = Arrays.stream(parameters).map(Converter::convertType).collect(Collectors.toList());
-				return ParameterizedTypeName.get(typeName, mapArguments.toArray(new TypeName[0]));
-			}
-			else
-			{
-				return ClassName.bestGuess(psiType.getCanonicalText());
-			}
-		}
-		else if(psiType instanceof PsiArrayType)
-		{
-			PsiType componentType = ((PsiArrayType) psiType).getComponentType();
-
-			TypeName typeName = convertType(componentType);
-
-			return ArrayTypeName.of(typeName);
-		}
-		return ClassName.get("", "unknown" + psiType.getClass().getSimpleName());
 	}
 }
