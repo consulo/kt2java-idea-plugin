@@ -270,7 +270,14 @@ public class KtExpressionConveter extends KtVisitorVoid
 
 		GeneratedElement falseBlock = anElse == null ? null : convert(anElse);
 
-		myGeneratedElement = new IfStatement(condition, trueBlock, falseBlock);
+		if(expression.getParent() instanceof KtBlockExpression)
+		{
+			myGeneratedElement = new IfStatement(condition, trueBlock, falseBlock);
+		}
+		else
+		{
+			myGeneratedElement = new TernaryExpression(condition, trueBlock, falseBlock);
+		}
 	}
 
 	@Override
