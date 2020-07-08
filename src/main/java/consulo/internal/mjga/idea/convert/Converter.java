@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.asJava.elements.KtLightFieldForSourceDeclarationSupp
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor;
 import org.jetbrains.kotlin.descriptors.SourceElement;
 import org.jetbrains.kotlin.psi.*;
+import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.source.PsiSourceElement;
 
 import javax.lang.model.element.Modifier;
@@ -102,7 +103,7 @@ public class Converter
 		{
 			try
 			{
-				writeFile(ktToJavaClassBinder);
+				writeFile(context, ktToJavaClassBinder);
 			}
 			catch(IOException e)
 			{
@@ -111,7 +112,7 @@ public class Converter
 		});
 	}
 
-	private static void writeFile(KtToJavaClassBinder binder) throws IOException
+	private static void writeFile(ConvertContext context, KtToJavaClassBinder binder) throws IOException
 	{
 		KtElement sourceElement = binder.getSourceElement();
 		Module module = ReadAction.compute(() -> ModuleUtil.findModuleForPsiElement(sourceElement));
@@ -119,6 +120,8 @@ public class Converter
 		{
 			return;
 		}
+
+		BindingContext bindingContext = ReadAction.compute(() -> context.getBindingContext(sourceElement));
 
 		ContentEntry entry = ReadAction.compute(() -> ModuleRootManager.getInstance(module).getContentEntries()[0]);
 		SourceFolder sourceFolder = entry.getSourceFolders(JavaSourceRootType.SOURCE).get(0);
@@ -145,7 +148,7 @@ public class Converter
 				break;
 		}
 
-		ReadAction.run(() -> convert(builder, sourceElement, binder.getJavaWrapper(), isInterface));
+		ReadAction.run(() -> convert(builder, sourceElement, binder.getJavaWrapper(), isInterface, bindingContext));
 
 		JavaFile.Builder fileBuilder = JavaFile.builder(binder.getPackageName(), builder.build());
 
@@ -173,7 +176,7 @@ public class Converter
 		});
 	}
 
-	private static void convert(TypeSpec.Builder builder, KtElement sourceElement, PsiClass javaWrapper, boolean isInterface)
+	private static void convert(TypeSpec.Builder builder, KtElement sourceElement, PsiClass javaWrapper, boolean isInterface, BindingContext bindingContext)
 	{
 		if(!(javaWrapper instanceof PsiExtensibleClass))
 		{
@@ -220,14 +223,8 @@ public class Converter
 
 					if(initializer != null)
 					{
-						KtExpressionConveter c = new KtExpressionConveter();
-						initializer.accept(c);
-
-						CodeBlock codeBlock = c.getCodeBlock();
-						if(codeBlock != null)
-						{
-							fieldBuilder.initializer(codeBlock);
-						}
+						GeneratedElement codeBlock = KtExpressionConveter.convertNonnull(bindingContext, initializer);
+						fieldBuilder.initializer(codeBlock.generate());
 					}
 				}
 			}
@@ -265,7 +262,6 @@ public class Converter
 						}
 					}
 				}
-				System.out.println();
 			}
 
 			boolean isConstructor = methodOrConstructor.isConstructor();
@@ -287,7 +283,7 @@ public class Converter
 			ClassName thisTypeRef = ClassName.bestGuess(javaWrapper.getQualifiedName());
 			if(body != null)
 			{
-				GeneratedElement generatedElement = KtExpressionConveter.convert(body);
+				GeneratedElement generatedElement = KtExpressionConveter.convert(bindingContext, body);
 				if(generatedElement != null)
 				{
 					methodBuilder.addCode(generatedElement.generate());
@@ -410,7 +406,7 @@ public class Converter
 		}
 	}
 
-	private static String safeName(String name)
+	public static String safeName(String name)
 	{
 		if(JavaLexer.isKeyword(name, LanguageLevel.JDK_1_8))
 		{

@@ -22,8 +22,8 @@ public class ReturnStatement extends Statement
 	{
 		if(myExpression != null)
 		{
-			return CodeBlock.of("return $L;", myExpression.generate());
+			return CodeBlock.of("return $L;\n", myExpression.generate());
 		}
-		return CodeBlock.of("return;");
+		return CodeBlock.of("return;\n");
 	}
 }

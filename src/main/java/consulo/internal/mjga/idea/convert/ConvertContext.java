@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.idea.resolve.ResolutionFacade;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.psi.KtClass;
 import org.jetbrains.kotlin.psi.KtClassOrObject;
+import org.jetbrains.kotlin.psi.KtElement;
 import org.jetbrains.kotlin.psi.KtFile;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
@@ -31,8 +32,6 @@ public class ConvertContext
 	private final Map<VirtualFile, KtFile> myVfToPsiFile;
 	private final ResolutionFacade myResolutionFacade;
 
-	private Map<KtFile, BindingContext> myContextMap = new HashMap<>();
-
 	private Map<KtFile, KtToJavaClassBinder> myFileBinder = new HashMap<>();
 	private Map<KtClassOrObject, KtToJavaClassBinder> myClassBinder = new HashMap<>();
 
@@ -40,6 +39,7 @@ public class ConvertContext
 	{
 		myProject = project;
 		myVfToPsiFile = vfToPsiFile;
+
 		KotlinCacheService kotlinCacheService = KotlinCacheService.Companion.getInstance(project);
 
 		myResolutionFacade = kotlinCacheService.getResolutionFacade(new ArrayList<>(vfToPsiFile.values()));
@@ -89,9 +89,9 @@ public class ConvertContext
 	}
 
 	@NotNull
-	public BindingContext getBindingContext(KtFile file)
+	public BindingContext getBindingContext(KtElement element)
 	{
-		return myContextMap.computeIfAbsent(file, f -> myResolutionFacade.analyze(f, BodyResolveMode.FULL));
+		return myResolutionFacade.analyze(element, BodyResolveMode.FULL);
 	}
 
 	public void forEach(Consumer<KtToJavaClassBinder> binder)
