@@ -1,5 +1,6 @@
 package consulo.internal.mjga.idea.convert;
 
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
 import com.squareup.javapoet.TypeName;
@@ -11,9 +12,7 @@ import consulo.internal.mjga.idea.convert.statement.LocalVariableStatement;
 import consulo.internal.mjga.idea.convert.statement.ReturnStatement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.descriptors.CallableDescriptor;
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
-import org.jetbrains.kotlin.descriptors.SourceElement;
+import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
 import org.jetbrains.kotlin.lexer.KtTokens;
@@ -212,51 +211,70 @@ public class KtExpressionConveter extends KtVisitorVoid
 	@Override
 	public void visitBinaryExpression(KtBinaryExpression expression)
 	{
-		GeneratedElement left = convertNonnull(expression.getLeft());
-		GeneratedElement right = convertNonnull(expression.getRight());
+		KtExpression leftExpr = expression.getLeft();
+
+		GeneratedElement rightGen = convertNonnull(expression.getRight());
 
 		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression, BodyResolveMode.FULL);
 
 		if(call == null)
 		{
-			return;
-		}
+			if(leftExpr instanceof KtReferenceExpression)
+			{
+				BindingContext context = ResolutionUtils.analyze(leftExpr);
 
-		IElementType operationToken = expression.getOperationToken();
-		if(operationToken == KtTokens.EQEQ)
+				DeclarationDescriptor leftResult = context.get(BindingContext.REFERENCE_TARGET, (KtReferenceExpression) leftExpr);
+
+				if(leftResult instanceof PropertyDescriptor)
+				{
+					if(((PropertyDescriptor) leftResult).getVisibility() == Visibilities.PRIVATE)
+					{
+						myGeneratedElement = new AssignExpression(convertNonnull(leftExpr), rightGen);
+					}
+					else
+					{
+						String methodName = "set" + StringUtil.capitalize(leftResult.getName().asString());
+						myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Arrays.asList(rightGen));
+					}
+				}
+			}
+		}
+		else
 		{
-			myGeneratedElement = new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(left, right));
-			return;
+			GeneratedElement leftGen = convertNonnull(leftExpr);
+
+			IElementType operationToken = expression.getOperationToken();
+			if(operationToken == KtTokens.EQEQ)
+			{
+				myGeneratedElement = new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
+				return;
+			}
+
+			if(operationToken == KtTokens.EXCLEQ)
+			{
+				myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
+				return;
+			}
+
+			if(operationToken == KtTokens.EQEQEQ)
+			{
+				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "==");
+				return;
+			}
+
+			if(operationToken == KtTokens.EXCLEQEQEQ)
+			{
+				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "!=");
+				return;
+			}
+
+			if(operationToken == KtTokens.ELVIS)
+			{
+				BinaryExpression condition = new BinaryExpression(leftGen, new ConstantExpression("null"), "==");
+				myGeneratedElement = new TernaryExpression(condition, rightGen, leftGen);
+				return;
+			}
 		}
-
-		if(operationToken == KtTokens.EXCLEQ)
-		{
-			myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(left, right)));
-			return;
-		}
-
-		if(operationToken == KtTokens.EQEQEQ)
-		{
-			myGeneratedElement = new BinaryExpression(left, right, "==");
-			return;
-		}
-
-		if(operationToken == KtTokens.EXCLEQEQEQ)
-		{
-			myGeneratedElement = new BinaryExpression(left, right, "!=");
-			return;
-		}
-
-		if(operationToken == KtTokens.ELVIS)
-		{
-			BinaryExpression condition = new BinaryExpression(left, new ConstantExpression("null"), "==");
-			myGeneratedElement = new TernaryExpression(condition, right, left);
-			return;
-		}
-
-		CallableDescriptor resultingDescriptor = call.getResultingDescriptor();
-
-		expression.getOperationReference();
 	}
 
 	@Override
