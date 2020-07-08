@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  * @author VISTALL
  * @since 2018-10-15
  */
-public class Converter
+public class MemberConverter
 {
 	public static void run(ConvertContext context)
 	{

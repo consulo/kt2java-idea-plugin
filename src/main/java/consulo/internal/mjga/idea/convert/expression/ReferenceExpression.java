@@ -1,7 +1,7 @@
 package consulo.internal.mjga.idea.convert.expression;
 
 import com.squareup.javapoet.CodeBlock;
-import consulo.internal.mjga.idea.convert.Converter;
+import consulo.internal.mjga.idea.convert.MemberConverter;
 
 /**
  * @author VISTALL
@@ -19,6 +19,6 @@ public class ReferenceExpression extends Expression
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of(wrap("$L", needNewLine), Converter.safeName(myReferenceName));
+		return CodeBlock.of(wrap("$L", needNewLine), MemberConverter.safeName(myReferenceName));
 	}
 }

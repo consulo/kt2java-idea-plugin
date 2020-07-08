@@ -11,7 +11,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
 import consulo.internal.mjga.idea.convert.ConvertContext;
-import consulo.internal.mjga.idea.convert.Converter;
+import consulo.internal.mjga.idea.convert.MemberConverter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.idea.KotlinFileType;
 import org.jetbrains.kotlin.psi.KtFile;
@@ -77,10 +77,10 @@ public class ConvertToJavaAction extends AnAction
 					}
 
 					ConvertContext context = new ConvertContext(project, vfToPsiFile);
-					Converter.run(context);
+					MemberConverter.run(context);
 					return context;
 				});
-				Converter.writeFiles(convertContext);
+				MemberConverter.writeFiles(convertContext);
 			}
 		}.queue();
 	}
