@@ -18,6 +18,8 @@ import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
 import org.jetbrains.kotlin.asJava.KotlinAsJavaSupport;
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade;
@@ -27,7 +29,6 @@ import org.jetbrains.kotlin.asJava.elements.KtLightFieldForSourceDeclarationSupp
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor;
 import org.jetbrains.kotlin.descriptors.SourceElement;
 import org.jetbrains.kotlin.psi.*;
-import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.source.PsiSourceElement;
 
 import javax.lang.model.element.Modifier;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 /**
@@ -121,8 +123,6 @@ public class MemberConverter
 			return;
 		}
 
-		BindingContext bindingContext = ReadAction.compute(() -> context.getBindingContext(sourceElement));
-
 		ContentEntry entry = ReadAction.compute(() -> ModuleRootManager.getInstance(module).getContentEntries()[0]);
 		SourceFolder sourceFolder = entry.getSourceFolders(JavaSourceRootType.SOURCE).get(0);
 
@@ -148,7 +148,7 @@ public class MemberConverter
 				break;
 		}
 
-		boolean containsAnyChild = ReadAction.compute(() -> convert(builder, sourceElement, binder.getJavaWrapper(), isInterface, bindingContext));
+		boolean containsAnyChild = ReadAction.compute(() -> convert(builder, binder.getJavaWrapper(), isInterface));
 
 		if(!containsAnyChild)
 		{
@@ -181,7 +181,7 @@ public class MemberConverter
 		});
 	}
 
-	private static boolean convert(TypeSpec.Builder builder, KtElement sourceElement, PsiClass javaWrapper, boolean isInterface, BindingContext bindingContext)
+	private static boolean convert(TypeSpec.Builder builder, PsiClass javaWrapper, boolean isInterface)
 	{
 		if(!(javaWrapper instanceof PsiExtensibleClass))
 		{
@@ -217,9 +217,52 @@ public class MemberConverter
 
 		ClassName thisTypeRef = ClassName.bestGuess(javaWrapper.getQualifiedName());
 
-		List<PsiField> fields = ((PsiExtensibleClass) javaWrapper).getOwnFields();
+		for(PsiClass innerClass : javaWrapper.getInnerClasses())
+		{
+			if(!(innerClass instanceof PsiExtensibleClass))
+			{
+				continue;
+			}
+
+			if("Companion".equals(innerClass.getName()))
+			{
+				hasAnyChild |= mapMembers(thisTypeRef, (PsiExtensibleClass) innerClass, ktClassOrObject, false, (p, f) -> {
+					f.addModifiers(Modifier.STATIC);
+					builder.addField(f.build());
+				}, (p, m) -> {
+					if(p.isConstructor())
+					{
+						// not constructor from compation object
+						return;
+					}
+					m.addModifiers(Modifier.STATIC);
+					builder.addMethod(m.build());
+				});
+			}
+		}
+
+		hasAnyChild |= mapMembers(thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, (p, f) -> builder.addField(f.build()), (p, m) -> builder.addMethod(m.build()));
+		return hasAnyChild;
+	}
+
+	private static boolean mapMembers(@NotNull TypeName thisTypeRef,
+									  @NotNull PsiExtensibleClass javaWrapper,
+									  @Nullable KtClassOrObject ktClassOrObject,
+									  boolean isInterface,
+									  @NotNull BiConsumer<PsiField, FieldSpec.Builder> fieldBuilders,
+									  @NotNull BiConsumer<PsiMethod, MethodSpec.Builder> methodBuilders)
+	{
+		boolean hasAnyChild = false;
+
+		List<PsiField> fields = javaWrapper.getOwnFields();
 		for(PsiField field : fields)
 		{
+			// companion field
+			if(field.hasModifier(JvmModifier.STATIC) && "Companion".equals(field.getName()))
+			{
+				continue;
+			}
+
 			hasAnyChild = true;
 
 			FieldSpec.Builder fieldBuilder = FieldSpec.builder(TypeConverter.convertJavaPsiType(field.getType()), safeName(field.getName()), convertModifiers(field, isInterface));
@@ -245,10 +288,10 @@ public class MemberConverter
 				fieldBuilder.initializer(CodeBlock.of("new $T()", thisTypeRef));
 			}
 
-			builder.addField(fieldBuilder.build());
+			fieldBuilders.accept(field, fieldBuilder);
 		}
 
-		List<PsiMethod> ownMethods = ((PsiExtensibleClass) javaWrapper).getOwnMethods();
+		List<PsiMethod> ownMethods = javaWrapper.getOwnMethods();
 		for(PsiMethod methodOrConstructor : ownMethods)
 		{
 			hasAnyChild = true;
@@ -346,13 +389,13 @@ public class MemberConverter
 						param.append(primaryConstructorParameter.getName());
 						param.append(")");
 
-						i ++;
-						
+						i++;
+
 						if(i != primaryConstructorParameters.size())
 						{
 							param.append(".append(\",\")");
 						}
-					
+
 						param.append(";\n");
 
 						methodBuilder.addCode(param.toString());
@@ -405,7 +448,7 @@ public class MemberConverter
 				}
 			}
 
-			builder.addMethod(methodBuilder.build());
+			methodBuilders.accept(methodOrConstructor, methodBuilder);
 		}
 
 		return hasAnyChild;
