@@ -339,6 +339,12 @@ public class MemberConverter
 				methodBuilder.addParameter(TypeConverter.convertJavaPsiType(parameter.getType()), safeName(parameter.getName()));
 			}
 
+			JvmReferenceType[] throwsTypes = methodOrConstructor.getThrowsTypes();
+			for(JvmReferenceType throwsType : throwsTypes)
+			{
+				methodBuilder.addException(TypeConverter.convertJavaPsiType((PsiType) throwsType));
+			}
+
 			if(ktDeclarationWithBody != null)
 			{
 				setBody(methodBuilder, ktDeclarationWithBody, context);
