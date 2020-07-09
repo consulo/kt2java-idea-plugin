@@ -86,6 +86,16 @@ public class ExpressionConveter extends KtVisitorVoid
 			BindingContext context = ResolutionUtils.analyze(expression);
 
 			DeclarationDescriptor receiverResult = context.get(BindingContext.REFERENCE_TARGET, expression);
+			if(receiverResult == null)
+			{
+				return;
+			}
+
+			@Nullable TypeName typeName = TypeConverter.convertKotlinDescriptor(receiverResult, false);
+			if(typeName != null)
+			{
+				myGeneratedElement = new TypeReferenceExpression(typeName);
+			}
 
 			if(receiverResult instanceof PropertyDescriptor)
 			{

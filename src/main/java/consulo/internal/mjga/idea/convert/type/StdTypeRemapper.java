@@ -2,14 +2,11 @@ package consulo.internal.mjga.idea.convert.type;
 
 import com.squareup.javapoet.TypeName;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.descriptors.ClassifierDescriptor;
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
 import org.jetbrains.kotlin.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedClassDescriptor;
-import org.jetbrains.kotlin.types.KotlinType;
-import org.jetbrains.kotlin.types.TypeConstructor;
 
 /**
  * @author VISTALL
@@ -32,13 +29,8 @@ public class StdTypeRemapper implements TypeRemapper
 	}
 
 	@Override
-	public @Nullable TypeName remap(KotlinType kotlinType)
+	public @Nullable TypeName remap(DeclarationDescriptor declarationDescriptor, boolean nullable)
 	{
-		TypeConstructor constructor = kotlinType.getConstructor();
-
-		ClassifierDescriptor declarationDescriptor = constructor.getDeclarationDescriptor();
-
-
 		if(declarationDescriptor instanceof DeserializedClassDescriptor)
 		{
 			Name name = declarationDescriptor.getName();
@@ -48,7 +40,7 @@ public class StdTypeRemapper implements TypeRemapper
 			if(typeName.equals(name.asString()) && containingDeclaration instanceof PackageFragmentDescriptor && ((PackageFragmentDescriptor) containingDeclaration).getFqName().equals(FqName.topLevel
 					(Name.identifier(packageName))))
 			{
-				if(kotlinType.isMarkedNullable())
+				if(nullable)
 				{
 					return nullableType;
 				}

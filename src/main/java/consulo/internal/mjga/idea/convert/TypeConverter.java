@@ -11,8 +11,7 @@ import consulo.internal.mjga.idea.convert.type.StdTypeRemapper;
 import consulo.internal.mjga.idea.convert.type.TypeRemapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.descriptors.ClassifierDescriptor;
-import org.jetbrains.kotlin.descriptors.SourceElement;
+import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.load.java.lazy.descriptors.LazyJavaClassDescriptor;
 import org.jetbrains.kotlin.load.java.structure.JavaClass;
 import org.jetbrains.kotlin.name.FqName;
@@ -22,10 +21,9 @@ import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.kotlin.resolve.source.KotlinSourceElement;
 import org.jetbrains.kotlin.types.KotlinType;
 import org.jetbrains.kotlin.types.TypeConstructor;
+import org.jetbrains.kotlin.types.TypeProjection;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +33,8 @@ import java.util.stream.Collectors;
 public class TypeConverter
 {
 	private static List<TypeRemapper> ourTypeRemappers = new ArrayList<>();
+
+	private static Map<ClassName, Class> ourDefaultRemaper = new HashMap<>();
 
 	static
 	{
@@ -49,12 +49,45 @@ public class TypeConverter
 		ourTypeRemappers.add(new StdTypeRemapper("kotlin", "String", TypeName.get(String.class), TypeName.get(String.class)));
 	}
 
+	static
+	{
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.MutableSet"), Set.class);
+	}
+
+	@NotNull
 	public static TypeName convertKotlinType(KotlinType kotlinType)
 	{
 		TypeConstructor constructor = kotlinType.getConstructor();
 
 		ClassifierDescriptor declarationDescriptor = constructor.getDeclarationDescriptor();
 
+		TypeName typeName = convertKotlinDescriptor(declarationDescriptor, kotlinType.getArguments(), kotlinType.isMarkedNullable());
+		if(typeName == null)
+		{
+			return ClassName.get("", "ErrorType");
+		}
+
+		List<TypeProjection> arguments = kotlinType.getArguments();
+
+		if(arguments.isEmpty())
+		{
+			return typeName;
+		}
+
+		List<TypeName> newArgs = arguments.stream().map(typeProjection -> convertKotlinType(typeProjection.getType())).collect(Collectors.toList());
+
+		return ParameterizedTypeName.get((ClassName) typeName, newArgs.toArray(new TypeName[0]));
+	}
+
+	@Nullable
+	public static TypeName convertKotlinDescriptor(DeclarationDescriptor declarationDescriptor, boolean nullable)
+	{
+		return convertKotlinDescriptor(declarationDescriptor, Collections.emptyList(), nullable);
+	}
+
+	@Nullable
+	public static TypeName convertKotlinDescriptor(DeclarationDescriptor declarationDescriptor, List<TypeProjection> arguments, boolean nullable)
+	{
 		if(declarationDescriptor instanceof LazyJavaClassDescriptor)
 		{
 			JavaClass jClass = ((LazyJavaClassDescriptor) declarationDescriptor).getJClass();
@@ -64,7 +97,7 @@ public class TypeConverter
 
 		for(TypeRemapper typeRemapper : ourTypeRemappers)
 		{
-			@Nullable TypeName remap = typeRemapper.remap(kotlinType);
+			@Nullable TypeName remap = typeRemapper.remap(declarationDescriptor, nullable);
 			if(remap != null)
 			{
 				return remap;
@@ -73,7 +106,7 @@ public class TypeConverter
 
 		if(declarationDescriptor instanceof LazyClassDescriptor)
 		{
-			SourceElement source = declarationDescriptor.getSource();
+			SourceElement source = ((DeclarationDescriptorWithSource) declarationDescriptor).getSource();
 
 			if(source instanceof KotlinSourceElement)
 			{
@@ -89,7 +122,30 @@ public class TypeConverter
 				}
 			}
 		}
-		return ClassName.get("", "ErrorType");
+
+		if(declarationDescriptor instanceof ClassDescriptor)
+		{
+			DeclarationDescriptor containingDeclaration = declarationDescriptor.getContainingDeclaration();
+
+			String packageName = "";
+
+			if(containingDeclaration instanceof PackageFragmentDescriptor)
+			{
+				packageName = ((PackageFragmentDescriptor) containingDeclaration).getFqName().toString();
+			}
+
+			ClassName defaultClassName = ClassName.get(packageName, declarationDescriptor.getName().asString());
+
+			Class remap = ourDefaultRemaper.get(defaultClassName);
+			if(remap != null)
+			{
+				return TypeName.get(remap);
+			}
+
+			return defaultClassName;
+		}
+
+		return null;
 	}
 
 	@NotNull

@@ -1,9 +1,8 @@
 package consulo.internal.mjga.idea.convert.type;
 
 import com.squareup.javapoet.TypeName;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.types.KotlinType;
+import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
 
 /**
  * @author VISTALL
@@ -12,5 +11,5 @@ import org.jetbrains.kotlin.types.KotlinType;
 public interface TypeRemapper
 {
 	@Nullable
-	TypeName remap(@NotNull KotlinType kotlinType);
+	TypeName remap(DeclarationDescriptor declarationDescriptor, boolean nullable);
 }
