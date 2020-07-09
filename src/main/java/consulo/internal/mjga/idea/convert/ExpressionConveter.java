@@ -9,10 +9,7 @@ import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.expression.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.library.FunctionRemapper;
-import consulo.internal.mjga.idea.convert.statement.BlockStatement;
-import consulo.internal.mjga.idea.convert.statement.IfStatement;
-import consulo.internal.mjga.idea.convert.statement.LocalVariableStatement;
-import consulo.internal.mjga.idea.convert.statement.ReturnStatement;
+import consulo.internal.mjga.idea.convert.statement.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.*;
@@ -221,6 +218,32 @@ public class ExpressionConveter extends KtVisitorVoid
 		}
 
 		myGeneratedElement = new StringBuilderExpression(expressions);
+	}
+
+	@Override
+	public void visitTryExpression(KtTryExpression expression)
+	{
+		KtBlockExpression tryBlock = expression.getTryBlock();
+
+		@NotNull GeneratedElement tryBlockGen = convertNonnull(tryBlock);
+
+		List<KtCatchClause> catchClauses = expression.getCatchClauses();
+
+		List<TryCatchStatement.Catch> catches = new ArrayList<>();
+		for(KtCatchClause clause : catchClauses)
+		{
+			KtParameter catchParameter = clause.getCatchParameter();
+
+			BindingContext context = ResolutionUtils.analyze(catchParameter);
+
+			ValueDescriptor d = (ValueDescriptor) context.get(BindingContext.DECLARATION_TO_DESCRIPTOR, catchParameter);
+
+			@NotNull GeneratedElement body = convertNonnull(clause.getCatchBody());
+
+			catches.add(new TryCatchStatement.Catch(MemberConverter.safeName(catchParameter.getName()), TypeConverter.convertKotlinType(d.getType()), body));
+		}
+
+		myGeneratedElement = new TryCatchStatement(tryBlockGen, catches);
 	}
 
 	@Override
