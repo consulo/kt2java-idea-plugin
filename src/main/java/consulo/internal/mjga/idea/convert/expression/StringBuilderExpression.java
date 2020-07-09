@@ -22,6 +22,10 @@ public class StringBuilderExpression extends Expression
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{
+		if(myList.isEmpty())
+		{
+			return CodeBlock.of("\"\"");
+		}
 		return CodeBlock.join(myList.stream().map(GeneratedElement::generate).collect(Collectors.toList()), " + ");
 	}
 }

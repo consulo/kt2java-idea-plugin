@@ -12,8 +12,14 @@ import consulo.internal.mjga.idea.convert.type.TypeRemapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.ClassifierDescriptor;
+import org.jetbrains.kotlin.descriptors.SourceElement;
 import org.jetbrains.kotlin.load.java.lazy.descriptors.LazyJavaClassDescriptor;
 import org.jetbrains.kotlin.load.java.structure.JavaClass;
+import org.jetbrains.kotlin.name.FqName;
+import org.jetbrains.kotlin.psi.KtClassOrObject;
+import org.jetbrains.kotlin.psi.KtElement;
+import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
+import org.jetbrains.kotlin.resolve.source.KotlinSourceElement;
 import org.jetbrains.kotlin.types.KotlinType;
 import org.jetbrains.kotlin.types.TypeConstructor;
 
@@ -62,6 +68,25 @@ public class TypeConverter
 			if(remap != null)
 			{
 				return remap;
+			}
+		}
+
+		if(declarationDescriptor instanceof LazyClassDescriptor)
+		{
+			SourceElement source = declarationDescriptor.getSource();
+
+			if(source instanceof KotlinSourceElement)
+			{
+				KtElement psi = ((KotlinSourceElement) source).getPsi();
+
+				if(psi instanceof KtClassOrObject)
+				{
+					FqName fqName = ((KtClassOrObject) psi).getFqName();
+
+					String qName = fqName.toString();
+
+					return ClassName.bestGuess(qName);
+				}
 			}
 		}
 		return ClassName.get("", "ErrorType");

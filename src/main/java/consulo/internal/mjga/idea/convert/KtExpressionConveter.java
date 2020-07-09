@@ -34,15 +34,6 @@ import java.util.*;
  */
 public class KtExpressionConveter extends KtVisitorVoid
 {
-	@Nullable
-	public static GeneratedElement convert(@NotNull PsiElement element)
-	{
-		KtExpressionConveter conveter = new KtExpressionConveter();
-		element.accept(conveter);
-		GeneratedElement generatedElement = conveter.myGeneratedElement;
-		return generatedElement;
-	}
-
 	@NotNull
 	public static GeneratedElement convertNonnull(@Nullable PsiElement element)
 	{
@@ -55,7 +46,7 @@ public class KtExpressionConveter extends KtVisitorVoid
 		GeneratedElement generatedElement = conveter.myGeneratedElement;
 		if(generatedElement == null)
 		{
-			generatedElement = new ConstantExpression("\"unsupported\"");
+			generatedElement = new ConstantExpression("\"unsupported '" + element.getText() + "' expression\"");
 		}
 		return generatedElement;
 	}
@@ -76,7 +67,46 @@ public class KtExpressionConveter extends KtVisitorVoid
 			String referencedName = expression.getReferencedName();
 
 			myGeneratedElement = new ReferenceExpression(referencedName);
+
+			BindingContext context = ResolutionUtils.analyze(expression);
+
+			DeclarationDescriptor receiverResult = context.get(BindingContext.REFERENCE_TARGET, expression);
+
+			if(receiverResult instanceof PropertyDescriptor)
+			{
+				if(((PropertyDescriptor) receiverResult).getVisibility() != Visibilities.PRIVATE)
+				{
+					String methodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
+					myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Collections.emptyList());
+				}
+			}
 		}
+	}
+
+	@Override
+	public void visitPostfixExpression(KtPostfixExpression expression)
+	{
+		KtExpression baseExpression = expression.getBaseExpression();
+
+		@NotNull GeneratedElement generatedElement = convertNonnull(baseExpression);
+
+		IElementType operationToken = expression.getOperationToken();
+
+		// assertion - just ignore
+		if(operationToken == KtTokens.EXCLEXCL)
+		{
+		 	myGeneratedElement = generatedElement;
+		}
+	}
+
+	// TODO better handle safe access
+	@Override
+	public void visitSafeQualifiedExpression(KtSafeQualifiedExpression expression)
+	{
+		@NotNull GeneratedElement left = convertNonnull(expression.getReceiverExpression());
+		@NotNull GeneratedElement right = convertNonnull(expression.getSelectorExpression());
+
+		myGeneratedElement = new QualifiedExpression(left, right);
 	}
 
 	@Override
@@ -189,6 +219,27 @@ public class KtExpressionConveter extends KtVisitorVoid
 
 			myGeneratedElement = new LambdaExpression(Collections.emptyList(), convertNonnull(bodyExpression));
 		}
+		else if(resultingDescriptor instanceof ClassConstructorDescriptor)
+		{
+			List<GeneratedElement> args = new ArrayList<>();
+
+			List<ResolvedValueArgument> valueArgumentsByIndex = call.getValueArgumentsByIndex();
+
+			for(ResolvedValueArgument valueArgument : valueArgumentsByIndex)
+			{
+				for(ValueArgument argument : valueArgument.getArguments())
+				{
+					args.add(convertNonnull(argument.getArgumentExpression()));
+				}
+			}
+
+
+			KotlinType returnType = resultingDescriptor.getReturnType();
+
+			TypeName typeName = TypeConverter.convertKotlinType(returnType);
+
+			myGeneratedElement = new NewExpression(typeName, args);
+		}
 		else
 		{
 			List<GeneratedElement> args = new ArrayList<>();
@@ -213,7 +264,40 @@ public class KtExpressionConveter extends KtVisitorVoid
 	{
 		KtExpression leftExpr = expression.getLeft();
 
+		GeneratedElement leftGen = convertNonnull(leftExpr);
 		GeneratedElement rightGen = convertNonnull(expression.getRight());
+
+		IElementType operationToken = expression.getOperationToken();
+		if(operationToken == KtTokens.EQEQ)
+		{
+			myGeneratedElement = new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
+			return;
+		}
+
+		if(operationToken == KtTokens.EXCLEQ)
+		{
+			myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
+			return;
+		}
+
+		if(operationToken == KtTokens.EQEQEQ)
+		{
+			myGeneratedElement = new BinaryExpression(leftGen, rightGen, "==");
+			return;
+		}
+
+		if(operationToken == KtTokens.EXCLEQEQEQ)
+		{
+			myGeneratedElement = new BinaryExpression(leftGen, rightGen, "!=");
+			return;
+		}
+
+		if(operationToken == KtTokens.ELVIS)
+		{
+			BinaryExpression condition = new BinaryExpression(leftGen, new ConstantExpression("null"), "==");
+			myGeneratedElement = new TernaryExpression(condition, rightGen, leftGen);
+			return;
+		}
 
 		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression, BodyResolveMode.FULL);
 
@@ -239,41 +323,16 @@ public class KtExpressionConveter extends KtVisitorVoid
 				}
 			}
 		}
-		else
+
+		if(myGeneratedElement != null)
 		{
-			GeneratedElement leftGen = convertNonnull(leftExpr);
+			return;
+		}
 
-			IElementType operationToken = expression.getOperationToken();
-			if(operationToken == KtTokens.EQEQ)
-			{
-				myGeneratedElement = new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
-				return;
-			}
-
-			if(operationToken == KtTokens.EXCLEQ)
-			{
-				myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
-				return;
-			}
-
-			if(operationToken == KtTokens.EQEQEQ)
-			{
-				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "==");
-				return;
-			}
-
-			if(operationToken == KtTokens.EXCLEQEQEQ)
-			{
-				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "!=");
-				return;
-			}
-
-			if(operationToken == KtTokens.ELVIS)
-			{
-				BinaryExpression condition = new BinaryExpression(leftGen, new ConstantExpression("null"), "==");
-				myGeneratedElement = new TernaryExpression(condition, rightGen, leftGen);
-				return;
-			}
+		if(operationToken == KtTokens.EQ)
+		{
+			myGeneratedElement = new AssignExpression(leftGen, rightGen);
+			return;
 		}
 	}
 
@@ -286,12 +345,12 @@ public class KtExpressionConveter extends KtVisitorVoid
 
 		KtExpression anElse = expression.getElse();
 
-		GeneratedElement falseBlock = anElse == null ? null : convert(anElse);
+		GeneratedElement falseBlock = anElse == null ? null : convertNonnull(anElse);
 
 		boolean canByTernary = false;
 
 		PsiElement parent = expression.getParent();
-		if(parent instanceof KtProperty || parent instanceof KtBinaryExpression)
+		if(parent instanceof KtProperty || parent instanceof KtBinaryExpression || parent instanceof KtValueArgument)
 		{
 			canByTernary = true;
 		}
@@ -316,7 +375,7 @@ public class KtExpressionConveter extends KtVisitorVoid
 	public void visitReturnExpression(KtReturnExpression expression)
 	{
 		KtExpression returnedExpression = expression.getReturnedExpression();
-		myGeneratedElement = returnedExpression == null ? new ReturnStatement(null) : new ReturnStatement(convert(returnedExpression));
+		myGeneratedElement = returnedExpression == null ? new ReturnStatement(null) : new ReturnStatement(convertNonnull(returnedExpression));
 	}
 
 	@Override
@@ -327,12 +386,9 @@ public class KtExpressionConveter extends KtVisitorVoid
 		List<GeneratedElement> generatedElements = new ArrayList<>();
 		for(KtExpression statement : statements)
 		{
-			GeneratedElement generatedElement = convert(statement);
+			GeneratedElement generatedElement = convertNonnull(statement);
 
-			if(generatedElement != null)
-			{
-				generatedElements.add(generatedElement);
-			}
+			generatedElements.add(generatedElement);
 		}
 
 		myGeneratedElement = new BlockStatement(generatedElements);

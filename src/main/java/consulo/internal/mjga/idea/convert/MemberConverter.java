@@ -344,11 +344,8 @@ public class MemberConverter
 
 			if(body != null)
 			{
-				GeneratedElement generatedElement = KtExpressionConveter.convert(body);
-				if(generatedElement != null)
-				{
-					methodBuilder.addCode(generatedElement.generate());
-				}
+				GeneratedElement generatedElement = KtExpressionConveter.convertNonnull(body);
+				methodBuilder.addCode(generatedElement.generate());
 			}
 			else if(ktClassOrObject instanceof KtClass && ((KtClass) ktClassOrObject).isData())
 			{
