@@ -296,7 +296,7 @@ public class MemberConverter
 			hasAnyChild = true;
 
 			KtValVarKeywordOwner ktPropertyOrParameter = null;
-			KtExpression body = null;
+			KtDeclarationWithBody ktDeclarationWithBody = null;
 			if(methodOrConstructor instanceof KtUltraLightMethodForSourceDeclaration)
 			{
 				LightMemberOrigin lightMemberOrigin = ((KtUltraLightMethodForSourceDeclaration) methodOrConstructor).getLightMemberOrigin();
@@ -309,11 +309,12 @@ public class MemberConverter
 
 					if(bodyExpression != null)
 					{
-						body = bodyExpression;
+						ktDeclarationWithBody = (KtDeclarationWithBody) originalElement;
 					}
 					else
 					{
-						body = ((KtFunction) originalElement).getBodyBlockExpression();
+						KtBlockExpression bodyBlockExpression = ((KtFunction) originalElement).getBodyBlockExpression();
+						ktDeclarationWithBody = bodyBlockExpression == null ? null : (KtDeclarationWithBody) originalElement;
 					}
 				}
 				else if(originalElement instanceof KtValVarKeywordOwner)
@@ -338,17 +339,9 @@ public class MemberConverter
 				methodBuilder.addParameter(TypeConverter.convertJavaPsiType(parameter.getType()), safeName(parameter.getName()));
 			}
 
-			if(body != null)
+			if(ktDeclarationWithBody != null)
 			{
-				GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body, context);
-				if(body instanceof KtBlockExpression)
-				{
-					methodBuilder.addCode(generatedElement.generate());
-				}
-				else
-				{
-					methodBuilder.addCode(new ReturnStatement(generatedElement).wantSemicolon(true).generate());
-				}
+				setBody(methodBuilder, ktDeclarationWithBody, context);
 			}
 			else if(ktPropertyOrParameter != null && !methodOrConstructor.hasModifier(JvmModifier.ABSTRACT))
 			{
@@ -356,11 +349,41 @@ public class MemberConverter
 
 				if(methodName.startsWith("get") || methodName.startsWith("is"))
 				{
-					methodBuilder.addCode(CodeBlock.of("return $L;", name));
+					boolean wantDefault = true;
+					if(ktPropertyOrParameter instanceof KtProperty)
+					{
+						KtPropertyAccessor getter = ((KtProperty) ktPropertyOrParameter).getGetter();
+						if(getter != null)
+						{
+							wantDefault = false;
+
+							setBody(methodBuilder, getter, context);
+						}
+					}
+
+					if(wantDefault)
+					{
+						methodBuilder.addCode(CodeBlock.of("return $L;", name));
+					}
 				}
 				else
 				{
-					methodBuilder.addCode(CodeBlock.of("this.$L = $L;", name, name));
+					boolean wantDefault = true;
+					if(ktPropertyOrParameter instanceof KtProperty)
+					{
+						KtPropertyAccessor setter = ((KtProperty) ktPropertyOrParameter).getSetter();
+						if(setter != null)
+						{
+							wantDefault = false;
+
+							setBody(methodBuilder, setter, context);
+						}
+					}
+					
+					if(wantDefault)
+					{
+						methodBuilder.addCode(CodeBlock.of("this.$L = $L;", name, name));
+					}
 				}
 			}
 			else if(isConstructor && ktClassOrObject instanceof KtClass && !(((KtClass) ktClassOrObject).isData()))
@@ -374,7 +397,6 @@ public class MemberConverter
 						methodBuilder.addCode(CodeBlock.of("this.$L = $L;\n", parameter.getName(), parameter.getName()));
 					}
 				}
-
 			}
 			else if(ktClassOrObject instanceof KtClass && ((KtClass) ktClassOrObject).isData())
 			{
@@ -478,6 +500,25 @@ public class MemberConverter
 		}
 
 		return hasAnyChild;
+	}
+
+	private static void setBody(MethodSpec.Builder methodBuilder, KtDeclarationWithBody declarationWithBody, ConvertContext context)
+	{
+		KtElement body = declarationWithBody.getBodyBlockExpression();
+		if(body == null)
+		{
+			body = declarationWithBody.getBodyExpression();
+		}
+
+		GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body, context);
+		if(body instanceof KtBlockExpression)
+		{
+			methodBuilder.addCode(generatedElement.generate());
+		}
+		else
+		{
+			methodBuilder.addCode(new ReturnStatement(generatedElement).wantSemicolon(true).generate());
+		}
 	}
 
 	public static String safeName(String name)

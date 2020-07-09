@@ -14,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor;
+import org.jetbrains.kotlin.descriptors.impl.SyntheticFieldDescriptor;
 import org.jetbrains.kotlin.descriptors.impl.TypeAliasConstructorDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
 import org.jetbrains.kotlin.lexer.KtTokens;
@@ -97,7 +98,13 @@ public class ExpressionConveter extends KtVisitorVoid
 				myGeneratedElement = new TypeReferenceExpression(typeName);
 			}
 
-			if(receiverResult instanceof PropertyDescriptor)
+			if(receiverResult instanceof SyntheticFieldDescriptor)
+			{
+				PropertyDescriptor propertyDescriptor = ((SyntheticFieldDescriptor) receiverResult).getPropertyDescriptor();
+
+				myGeneratedElement = new ReferenceExpression("__" + propertyDescriptor.getName());
+			}
+			else if(receiverResult instanceof PropertyDescriptor)
 			{
 				PropertyGetterDescriptor getter = ((PropertyDescriptor) receiverResult).getGetter();
 				if(getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != Visibilities.PRIVATE)
