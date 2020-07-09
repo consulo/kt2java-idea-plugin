@@ -34,7 +34,7 @@ public class TypeConverter
 {
 	private static final List<TypeRemapper> ourTypeRemappers = new ArrayList<>();
 
-	private static final Map<ClassName, Class> ourDefaultRemaper = new HashMap<>();
+	private static final Map<ClassName, TypeName> ourDefaultRemaper = new HashMap<>();
 
 	static
 	{
@@ -51,7 +51,10 @@ public class TypeConverter
 
 	static
 	{
-		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.MutableSet"), Set.class);
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.MutableSet"), ClassName.get(Set.class));
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.ByteArray"), ArrayTypeName.of(TypeName.BYTE));
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.ShortArray"), ArrayTypeName.of(TypeName.SHORT));
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.IntArray"), ArrayTypeName.of(TypeName.INT));
 	}
 
 	@NotNull
@@ -136,10 +139,10 @@ public class TypeConverter
 
 			ClassName defaultClassName = ClassName.get(packageName, declarationDescriptor.getName().asString());
 
-			Class remap = ourDefaultRemaper.get(defaultClassName);
+			TypeName remap = ourDefaultRemaper.get(defaultClassName);
 			if(remap != null)
 			{
-				return TypeName.get(remap);
+				return remap;
 			}
 
 			return defaultClassName;
