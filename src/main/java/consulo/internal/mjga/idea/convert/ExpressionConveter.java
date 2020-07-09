@@ -133,6 +133,34 @@ public class ExpressionConveter extends KtVisitorVoid
 	}
 
 	@Override
+	public void visitPrefixExpression(KtPrefixExpression expression)
+	{
+		KtExpression baseExpression = expression.getBaseExpression();
+
+		@NotNull GeneratedElement generatedElement = convertNonnull(baseExpression);
+
+		IElementType operationToken = expression.getOperationToken();
+
+		// !test
+		if(operationToken == KtTokens.EXCL)
+		{
+			myGeneratedElement = new PrefixExpression("!", generatedElement);
+		}
+	}
+
+	@Override
+	public void visitIsExpression(KtIsExpression expression)
+	{
+		@NotNull GeneratedElement generatedElement = convertNonnull(expression.getLeftHandSide());
+
+		BindingContext context = ResolutionUtils.analyze(expression.getTypeReference());
+
+		KotlinType type = context.get(BindingContext.TYPE, expression.getTypeReference());
+
+		myGeneratedElement = new InstanceOfExpression(generatedElement, TypeConverter.convertKotlinType(type));
+	}
+
+	@Override
 	public void visitPostfixExpression(KtPostfixExpression expression)
 	{
 		KtExpression baseExpression = expression.getBaseExpression();
