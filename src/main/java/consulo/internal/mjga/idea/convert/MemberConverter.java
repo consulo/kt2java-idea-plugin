@@ -22,18 +22,15 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
 import org.jetbrains.kotlin.asJava.KotlinAsJavaSupport;
+import org.jetbrains.kotlin.asJava.builder.LightMemberOrigin;
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade;
 import org.jetbrains.kotlin.asJava.classes.KtUltraLightMethodForSourceDeclaration;
 import org.jetbrains.kotlin.asJava.elements.KtLightElement;
 import org.jetbrains.kotlin.asJava.elements.KtLightFieldForSourceDeclarationSupport;
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor;
-import org.jetbrains.kotlin.descriptors.SourceElement;
 import org.jetbrains.kotlin.psi.*;
-import org.jetbrains.kotlin.resolve.source.PsiSourceElement;
 
 import javax.lang.model.element.Modifier;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -296,33 +293,30 @@ public class MemberConverter
 		{
 			hasAnyChild = true;
 
+			KtParameter ktParameter = null;
 			KtExpression body = null;
 			if(methodOrConstructor instanceof KtUltraLightMethodForSourceDeclaration)
 			{
-				FunctionDescriptor descriptor = getMethodDescriptor(methodOrConstructor);
+				LightMemberOrigin lightMemberOrigin = ((KtUltraLightMethodForSourceDeclaration) methodOrConstructor).getLightMemberOrigin();
 
-				if(descriptor != null)
+				KtDeclaration originalElement = lightMemberOrigin == null ? null : lightMemberOrigin.getOriginalElement();
+
+				if(originalElement instanceof KtFunction)
 				{
-					SourceElement source = descriptor.getSource();
+					KtExpression bodyExpression = ((KtFunction) originalElement).getBodyExpression();
 
-					if(source instanceof PsiSourceElement)
+					if(bodyExpression != null)
 					{
-						PsiElement psi = ((PsiSourceElement) source).getPsi();
-
-						if(psi instanceof KtFunction)
-						{
-							KtExpression bodyExpression = ((KtFunction) psi).getBodyExpression();
-
-							if(bodyExpression != null)
-							{
-								body = bodyExpression;
-							}
-							else
-							{
-								body = ((KtFunction) psi).getBodyBlockExpression();
-							}
-						}
+						body = bodyExpression;
 					}
+					else
+					{
+						body = ((KtFunction) originalElement).getBodyBlockExpression();
+					}
+				}
+				else if(originalElement instanceof KtParameter)
+				{
+					ktParameter = (KtParameter) originalElement;
 				}
 			}
 
@@ -346,6 +340,34 @@ public class MemberConverter
 			{
 				GeneratedElement generatedElement = KtExpressionConveter.convertNonnull(body);
 				methodBuilder.addCode(generatedElement.generate());
+			}
+			else if(ktParameter != null)
+			{
+				String propertyName = StringUtil.getPropertyName(methodName);
+				if(propertyName != null)
+				{
+					if(methodName.startsWith("get") || methodName.startsWith("is"))
+					{
+						methodBuilder.addCode(CodeBlock.of("return $L;", propertyName));
+					}
+					else
+					{
+						methodBuilder.addCode(CodeBlock.of("this.$L = $L;", propertyName, propertyName));
+					}
+				}
+			}
+			else if(isConstructor && ktClassOrObject instanceof KtClass && !(((KtClass) ktClassOrObject).isData()))
+			{
+				KtPrimaryConstructor primaryConstructor = ktClassOrObject.getPrimaryConstructor();
+
+				if(primaryConstructor != null)
+				{
+					for(PsiParameter parameter : parameters)
+					{
+						methodBuilder.addCode(CodeBlock.of("this.$L = $L;\n", parameter.getName(), parameter.getName()));
+					}
+				}
+
 			}
 			else if(ktClassOrObject instanceof KtClass && ((KtClass) ktClassOrObject).isData())
 			{
@@ -451,21 +473,6 @@ public class MemberConverter
 		return hasAnyChild;
 	}
 
-	private static FunctionDescriptor getMethodDescriptor(PsiMethod method)
-	{
-		try
-		{
-			Method descriptor = method.getClass().getDeclaredMethod("getMethodDescriptor");
-			descriptor.setAccessible(true);
-			return (FunctionDescriptor) descriptor.invoke(method);
-		}
-		catch(Throwable e)
-		{
-			e.printStackTrace();
-			return null;
-		}
-	}
-
 	public static String safeName(String name)
 	{
 		if(JavaLexer.isKeyword(name, LanguageLevel.JDK_1_8))
@@ -507,6 +514,11 @@ public class MemberConverter
 		if(owner.hasModifier(JvmModifier.PRIVATE))
 		{
 			modifiers.add(Modifier.PRIVATE);
+		}
+
+		if(owner.hasModifier(JvmModifier.PROTECTED))
+		{
+			modifiers.add(Modifier.PROTECTED);
 		}
 
 		if(owner.hasModifier(JvmModifier.FINAL))
