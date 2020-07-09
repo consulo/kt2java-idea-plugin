@@ -224,6 +224,12 @@ public class ExpressionConveter extends KtVisitorVoid
 	}
 
 	@Override
+	public void visitThisExpression(KtThisExpression expression)
+	{
+		myGeneratedElement = new ThisExpression();
+	}
+
+	@Override
 	public void visitCallExpression(KtCallExpression expression)
 	{
 		GeneratedElement genCall = convertNonnull(expression.getCalleeExpression());
