@@ -32,9 +32,9 @@ import java.util.stream.Collectors;
  */
 public class TypeConverter
 {
-	private static List<TypeRemapper> ourTypeRemappers = new ArrayList<>();
+	private static final List<TypeRemapper> ourTypeRemappers = new ArrayList<>();
 
-	private static Map<ClassName, Class> ourDefaultRemaper = new HashMap<>();
+	private static final Map<ClassName, Class> ourDefaultRemaper = new HashMap<>();
 
 	static
 	{

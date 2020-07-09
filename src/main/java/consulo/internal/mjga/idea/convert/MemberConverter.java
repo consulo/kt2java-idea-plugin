@@ -18,6 +18,7 @@ import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
+import consulo.internal.mjga.idea.convert.statement.ReturnStatement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
@@ -340,7 +341,14 @@ public class MemberConverter
 			if(body != null)
 			{
 				GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body, context);
-				methodBuilder.addCode(generatedElement.generate());
+				if(body instanceof KtBlockExpression)
+				{
+					methodBuilder.addCode(generatedElement.generate());
+				}
+				else
+				{
+					methodBuilder.addCode(new ReturnStatement(generatedElement).wantSemicolon(true).generate());
+				}
 			}
 			else if(ktPropertyOrParameter != null && !methodOrConstructor.hasModifier(JvmModifier.ABSTRACT))
 			{
