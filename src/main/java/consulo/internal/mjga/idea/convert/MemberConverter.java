@@ -274,7 +274,7 @@ public class MemberConverter
 
 					if(initializer != null)
 					{
-						GeneratedElement codeBlock = KtExpressionConveter.convertNonnull(initializer);
+						GeneratedElement codeBlock = ExpressionConveter.convertNonnull(initializer);
 						fieldBuilder.initializer(codeBlock.generate());
 					}
 				}
@@ -338,7 +338,7 @@ public class MemberConverter
 
 			if(body != null)
 			{
-				GeneratedElement generatedElement = KtExpressionConveter.convertNonnull(body);
+				GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body);
 				methodBuilder.addCode(generatedElement.generate());
 			}
 			else if(ktParameter != null)

@@ -32,7 +32,7 @@ import java.util.*;
  * @author VISTALL
  * @since 2020-06-24
  */
-public class KtExpressionConveter extends KtVisitorVoid
+public class ExpressionConveter extends KtVisitorVoid
 {
 	@NotNull
 	public static GeneratedElement convertNonnull(@Nullable PsiElement element)
@@ -41,7 +41,7 @@ public class KtExpressionConveter extends KtVisitorVoid
 		{
 			return new ConstantExpression("\"unsupported\"");
 		}
-		KtExpressionConveter conveter = new KtExpressionConveter();
+		ExpressionConveter conveter = new ExpressionConveter();
 		element.accept(conveter);
 		GeneratedElement generatedElement = conveter.myGeneratedElement;
 		if(generatedElement == null)
