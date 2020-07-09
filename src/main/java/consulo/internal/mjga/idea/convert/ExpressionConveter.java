@@ -17,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor;
+import org.jetbrains.kotlin.descriptors.impl.TypeAliasConstructorDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.load.java.sam.SamConstructorDescriptor;
@@ -252,7 +253,7 @@ public class ExpressionConveter extends KtVisitorVoid
 
 			myGeneratedElement = new LambdaExpression(Collections.emptyList(), convertNonnull(bodyExpression));
 		}
-		else if(resultingDescriptor instanceof ClassConstructorDescriptor)
+		else if(resultingDescriptor instanceof ClassConstructorDescriptor || resultingDescriptor instanceof TypeAliasConstructorDescriptor)
 		{
 			List<GeneratedElement> args = new ArrayList<>();
 
@@ -265,7 +266,6 @@ public class ExpressionConveter extends KtVisitorVoid
 					args.add(convertNonnull(argument.getArgumentExpression()));
 				}
 			}
-
 
 			KotlinType returnType = resultingDescriptor.getReturnType();
 
