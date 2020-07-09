@@ -159,6 +159,11 @@ public class TypeConverter
 			return TypeName.VOID;
 		}
 
+		if(psiType.equals(PsiType.LONG))
+		{
+			return TypeName.LONG;
+		}
+
 		if(psiType.equals(PsiType.INT))
 		{
 			return TypeName.INT;

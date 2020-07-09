@@ -461,6 +461,13 @@ public class ExpressionConveter extends KtVisitorVoid
 	}
 
 	@Override
+	public void visitThrowExpression(KtThrowExpression expression)
+	{
+		KtExpression thrownExpression = expression.getThrownExpression();
+		myGeneratedElement = new ThrowStatement(convertNonnull(thrownExpression));
+	}
+
+	@Override
 	public void visitBlockExpression(KtBlockExpression expression)
 	{
 		List<KtExpression> statements = expression.getStatements();
