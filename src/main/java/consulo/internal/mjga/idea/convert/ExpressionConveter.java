@@ -99,7 +99,8 @@ public class ExpressionConveter extends KtVisitorVoid
 
 			if(receiverResult instanceof PropertyDescriptor)
 			{
-				if(((PropertyDescriptor) receiverResult).getVisibility() != Visibilities.PRIVATE)
+				PropertyGetterDescriptor getter = ((PropertyDescriptor) receiverResult).getGetter();
+				if(getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != Visibilities.PRIVATE)
 				{
 					String methodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
 					myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Collections.emptyList());
@@ -383,7 +384,9 @@ public class ExpressionConveter extends KtVisitorVoid
 
 				if(leftResult instanceof PropertyDescriptor)
 				{
-					if(((PropertyDescriptor) leftResult).getVisibility() == Visibilities.PRIVATE)
+					PropertySetterDescriptor setter = ((PropertyDescriptor) leftResult).getSetter();
+
+					if(setter == null || ((PropertyDescriptor) leftResult).getVisibility() == Visibilities.PRIVATE)
 					{
 						myGeneratedElement = new AssignExpression(convertNonnull(leftExpr), rightGen);
 					}
