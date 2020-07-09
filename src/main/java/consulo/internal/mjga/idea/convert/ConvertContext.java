@@ -30,7 +30,6 @@ public class ConvertContext
 {
 	private final Project myProject;
 	private final Map<VirtualFile, KtFile> myVfToPsiFile;
-	private final ResolutionFacade myResolutionFacade;
 
 	private Map<KtFile, KtToJavaClassBinder> myFileBinder = new HashMap<>();
 	private Map<KtClassOrObject, KtToJavaClassBinder> myClassBinder = new HashMap<>();
@@ -39,10 +38,6 @@ public class ConvertContext
 	{
 		myProject = project;
 		myVfToPsiFile = vfToPsiFile;
-
-		KotlinCacheService kotlinCacheService = KotlinCacheService.Companion.getInstance(project);
-
-		myResolutionFacade = kotlinCacheService.getResolutionFacade(new ArrayList<>(vfToPsiFile.values()));
 	}
 
 	@NotNull
@@ -86,12 +81,6 @@ public class ConvertContext
 	public Collection<KtFile> getFiles()
 	{
 		return myVfToPsiFile.values();
-	}
-
-	@NotNull
-	public BindingContext getBindingContext(KtElement element)
-	{
-		return myResolutionFacade.analyze(element, BodyResolveMode.FULL);
 	}
 
 	public void forEach(Consumer<KtToJavaClassBinder> binder)

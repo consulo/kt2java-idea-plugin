@@ -2,9 +2,12 @@ package consulo.internal.mjga.idea.convert;
 
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
 import com.intellij.psi.tree.IElementType;
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.expression.*;
+import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.library.FunctionRemapper;
 import consulo.internal.mjga.idea.convert.statement.BlockStatement;
 import consulo.internal.mjga.idea.convert.statement.IfStatement;
@@ -24,6 +27,7 @@ import org.jetbrains.kotlin.resolve.calls.model.ResolvedValueArgument;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.kotlin.resolve.source.KotlinSourceElement;
+import org.jetbrains.kotlin.resolve.source.PsiSourceFile;
 import org.jetbrains.kotlin.types.KotlinType;
 
 import java.util.*;
@@ -34,14 +38,16 @@ import java.util.*;
  */
 public class ExpressionConveter extends KtVisitorVoid
 {
+	private final ConvertContext myContext;
+
 	@NotNull
-	public static GeneratedElement convertNonnull(@Nullable PsiElement element)
+	public static GeneratedElement convertNonnull(@Nullable PsiElement element, @NotNull ConvertContext context)
 	{
 		if(element == null)
 		{
 			return new ConstantExpression("\"unsupported\"");
 		}
-		ExpressionConveter conveter = new ExpressionConveter();
+		ExpressionConveter conveter = new ExpressionConveter(context);
 		element.accept(conveter);
 		GeneratedElement generatedElement = conveter.myGeneratedElement;
 		if(generatedElement == null)
@@ -52,6 +58,17 @@ public class ExpressionConveter extends KtVisitorVoid
 	}
 
 	private GeneratedElement myGeneratedElement;
+
+	public ExpressionConveter(ConvertContext context)
+	{
+		myContext = context;
+	}
+
+	@NotNull
+	private GeneratedElement convertNonnull(@Nullable PsiElement element)
+	{
+		return convertNonnull(element, myContext);
+	}
 
 	@Override
 	public void visitElement(@NotNull PsiElement element)
@@ -79,6 +96,22 @@ public class ExpressionConveter extends KtVisitorVoid
 					String methodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
 					myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Collections.emptyList());
 				}
+
+				if(receiverResult.getContainingDeclaration() instanceof PackageFragmentDescriptor)
+				{
+					SourceFile containingFile = ((PropertyDescriptor) receiverResult).getSource().getContainingFile();
+
+					PsiFile file = containingFile instanceof PsiSourceFile ? ((PsiSourceFile) containingFile).getPsiFile() : null;
+
+					if(file instanceof KtFile)
+					{
+						@NotNull KtToJavaClassBinder classBinder = myContext.bind((KtFile) file);
+
+						ClassName name = ClassName.get(classBinder.getPackageName(), classBinder.getClassName());
+
+						myGeneratedElement = new StaticTypeQualifiedExpression(name, myGeneratedElement);
+					}
+				}
 			}
 		}
 	}
@@ -95,7 +128,7 @@ public class ExpressionConveter extends KtVisitorVoid
 		// assertion - just ignore
 		if(operationToken == KtTokens.EXCLEXCL)
 		{
-		 	myGeneratedElement = generatedElement;
+			myGeneratedElement = generatedElement;
 		}
 	}
 
@@ -270,13 +303,13 @@ public class ExpressionConveter extends KtVisitorVoid
 		IElementType operationToken = expression.getOperationToken();
 		if(operationToken == KtTokens.EQEQ)
 		{
-			myGeneratedElement = new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
+			myGeneratedElement = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
 			return;
 		}
 
 		if(operationToken == KtTokens.EXCLEQ)
 		{
-			myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeReferenceExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
+			myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
 			return;
 		}
 

@@ -2,7 +2,7 @@ package consulo.internal.mjga.idea.convert.library;
 
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
-import consulo.internal.mjga.idea.convert.expression.StaticTypeReferenceExpression;
+import consulo.internal.mjga.idea.convert.expression.StaticTypeQualifiedExpression;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.descriptors.CallableDescriptor;
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
@@ -31,7 +31,7 @@ public class FunctionRemapper
 
 			if(fqName.equals(FqName.fromSegments(Arrays.asList("kotlin", "io"))) && resultingDescriptor.getName().asString().equals("println"))
 			{
-				return new StaticTypeReferenceExpression(TypeName.get(System.class), "out.println");
+				return new StaticTypeQualifiedExpression(TypeName.get(System.class), "out.println");
 			}
 		}
 		return genCall;

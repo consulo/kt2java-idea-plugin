@@ -145,7 +145,7 @@ public class MemberConverter
 				break;
 		}
 
-		boolean containsAnyChild = ReadAction.compute(() -> convert(builder, binder.getJavaWrapper(), isInterface));
+		boolean containsAnyChild = ReadAction.compute(() -> convert(context, builder, binder.getJavaWrapper(), isInterface));
 
 		if(!containsAnyChild)
 		{
@@ -178,7 +178,7 @@ public class MemberConverter
 		});
 	}
 
-	private static boolean convert(TypeSpec.Builder builder, PsiClass javaWrapper, boolean isInterface)
+	private static boolean convert(ConvertContext context, TypeSpec.Builder builder, PsiClass javaWrapper, boolean isInterface)
 	{
 		if(!(javaWrapper instanceof PsiExtensibleClass))
 		{
@@ -223,7 +223,7 @@ public class MemberConverter
 
 			if("Companion".equals(innerClass.getName()))
 			{
-				hasAnyChild |= mapMembers(thisTypeRef, (PsiExtensibleClass) innerClass, ktClassOrObject, false, (p, f) -> {
+				hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) innerClass, ktClassOrObject, false, (p, f) -> {
 					f.addModifiers(Modifier.STATIC);
 					builder.addField(f.build());
 				}, (p, m) -> {
@@ -238,11 +238,12 @@ public class MemberConverter
 			}
 		}
 
-		hasAnyChild |= mapMembers(thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, (p, f) -> builder.addField(f.build()), (p, m) -> builder.addMethod(m.build()));
+		hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, (p, f) -> builder.addField(f.build()), (p, m) -> builder.addMethod(m.build()));
 		return hasAnyChild;
 	}
 
-	private static boolean mapMembers(@NotNull TypeName thisTypeRef,
+	private static boolean mapMembers(@NotNull ConvertContext context,
+									  @NotNull TypeName thisTypeRef,
 									  @NotNull PsiExtensibleClass javaWrapper,
 									  @Nullable KtClassOrObject ktClassOrObject,
 									  boolean isInterface,
@@ -274,7 +275,7 @@ public class MemberConverter
 
 					if(initializer != null)
 					{
-						GeneratedElement codeBlock = ExpressionConveter.convertNonnull(initializer);
+						GeneratedElement codeBlock = ExpressionConveter.convertNonnull(initializer, context);
 						fieldBuilder.initializer(codeBlock.generate());
 					}
 				}
@@ -293,7 +294,7 @@ public class MemberConverter
 		{
 			hasAnyChild = true;
 
-			KtParameter ktParameter = null;
+			KtValVarKeywordOwner ktPropertyOrParameter = null;
 			KtExpression body = null;
 			if(methodOrConstructor instanceof KtUltraLightMethodForSourceDeclaration)
 			{
@@ -314,9 +315,9 @@ public class MemberConverter
 						body = ((KtFunction) originalElement).getBodyBlockExpression();
 					}
 				}
-				else if(originalElement instanceof KtParameter)
+				else if(originalElement instanceof KtValVarKeywordOwner)
 				{
-					ktParameter = (KtParameter) originalElement;
+					ktPropertyOrParameter = (KtValVarKeywordOwner) originalElement;
 				}
 			}
 
@@ -338,22 +339,20 @@ public class MemberConverter
 
 			if(body != null)
 			{
-				GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body);
+				GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body, context);
 				methodBuilder.addCode(generatedElement.generate());
 			}
-			else if(ktParameter != null)
+			else if(ktPropertyOrParameter != null && !methodOrConstructor.hasModifier(JvmModifier.ABSTRACT))
 			{
-				String propertyName = StringUtil.getPropertyName(methodName);
-				if(propertyName != null)
+				String name = safeName(((PsiNamedElement) ktPropertyOrParameter).getName());
+
+				if(methodName.startsWith("get") || methodName.startsWith("is"))
 				{
-					if(methodName.startsWith("get") || methodName.startsWith("is"))
-					{
-						methodBuilder.addCode(CodeBlock.of("return $L;", propertyName));
-					}
-					else
-					{
-						methodBuilder.addCode(CodeBlock.of("this.$L = $L;", propertyName, propertyName));
-					}
+					methodBuilder.addCode(CodeBlock.of("return $L;", name));
+				}
+				else
+				{
+					methodBuilder.addCode(CodeBlock.of("this.$L = $L;", name, name));
 				}
 			}
 			else if(isConstructor && ktClassOrObject instanceof KtClass && !(((KtClass) ktClassOrObject).isData()))
