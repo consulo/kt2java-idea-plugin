@@ -502,6 +502,16 @@ public class ExpressionConveter extends KtVisitorVoid
 	}
 
 	@Override
+	public void visitWhileExpression(KtWhileExpression expression)
+	{
+		GeneratedElement cond = convertNonnull(expression.getCondition());
+
+		KtExpression body = expression.getBody();
+
+		myGeneratedElement = new WhileStatement(cond, convertNonnull(body));
+	}
+
+	@Override
 	public void visitBlockExpression(KtBlockExpression expression)
 	{
 		List<KtExpression> statements = expression.getStatements();
