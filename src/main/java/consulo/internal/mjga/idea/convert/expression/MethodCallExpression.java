@@ -22,6 +22,16 @@ public class MethodCallExpression extends Expression
 		myArguments = arguments;
 	}
 
+	public GeneratedElement getCall()
+	{
+		return myCall;
+	}
+
+	public List<GeneratedElement> getArguments()
+	{
+		return myArguments;
+	}
+
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{

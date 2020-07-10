@@ -199,6 +199,8 @@ public class ExpressionConveter extends KtVisitorVoid
 	@Override
 	public void visitDotQualifiedExpression(KtDotQualifiedExpression expression)
 	{
+		BindingContext context = ResolutionUtils.analyze(expression);
+
 		KtExpression receiver = expression.getReceiverExpression();
 
 		GeneratedElement receiverGenerate = convertNonnull(receiver);
@@ -207,8 +209,6 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		if(receiver instanceof KtNameReferenceExpression)
 		{
-			BindingContext context = ResolutionUtils.analyze(receiver);
-
 			DeclarationDescriptor receiverResult = context.get(BindingContext.REFERENCE_TARGET, (KtNameReferenceExpression) receiver);
 
 			if(receiverResult instanceof LazyClassDescriptor)
@@ -227,7 +227,36 @@ public class ExpressionConveter extends KtVisitorVoid
 			}
 		}
 
-		myGeneratedElement = new QualifiedExpression(receiverGenerate, selectorGenerate);
+		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression.getSelectorExpression(), BodyResolveMode.FULL);
+
+		GeneratedElement result = new QualifiedExpression(receiverGenerate, selectorGenerate);
+
+		// extension call
+		if(call != null && call.getExtensionReceiver() != null)
+		{
+			GeneratedElement targetSelector = selectorGenerate;
+			TypeName qualifiedType = null;
+
+			if(targetSelector instanceof StaticTypeQualifiedExpression)
+			{
+				qualifiedType = ((StaticTypeQualifiedExpression) targetSelector).getTypeName();
+				targetSelector = ((StaticTypeQualifiedExpression) targetSelector).getSelector();
+			}
+
+			if(targetSelector instanceof MethodCallExpression)
+			{
+				GeneratedElement oldCall = ((MethodCallExpression) targetSelector).getCall();
+				List<GeneratedElement> oldArguments = ((MethodCallExpression) targetSelector).getArguments();
+
+				ArrayList<GeneratedElement> newArgs = new ArrayList<>(oldArguments);
+				newArgs.add(0, receiverGenerate);
+
+				MethodCallExpression newCall = new MethodCallExpression(oldCall, newArgs);
+				result = qualifiedType == null ? newCall : new StaticTypeQualifiedExpression(qualifiedType, newCall);
+			}
+		}
+
+		myGeneratedElement = result;
 	}
 
 	@Override

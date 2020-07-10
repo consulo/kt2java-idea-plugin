@@ -11,23 +11,33 @@ import consulo.internal.mjga.idea.convert.GeneratedElement;
 public class StaticTypeQualifiedExpression extends Expression
 {
 	private TypeName myTypeName;
-	private GeneratedElement myNameReference;
+	private GeneratedElement mySelector;
 
 	public StaticTypeQualifiedExpression(TypeName typeName, String name)
 	{
 		myTypeName = typeName;
-		myNameReference = new ReferenceExpression(name);
+		mySelector = new ReferenceExpression(name);
 	}
 
 	public StaticTypeQualifiedExpression(TypeName typeName, GeneratedElement name)
 	{
 		myTypeName = typeName;
-		myNameReference = name;
+		mySelector = name;
+	}
+
+	public TypeName getTypeName()
+	{
+		return myTypeName;
+	}
+
+	public GeneratedElement getSelector()
+	{
+		return mySelector;
 	}
 
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of(wrap("$T.$L", needNewLine), myTypeName, myNameReference.generate());
+		return CodeBlock.of(wrap("$T.$L", needNewLine), myTypeName, mySelector.generate());
 	}
 }
