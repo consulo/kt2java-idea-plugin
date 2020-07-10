@@ -23,6 +23,6 @@ public class TernaryExpression extends Expression
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("$L ? $L : $L", myCondition.generate(), myTrue.generate(), myFalse.generate());
+		return CodeBlock.of(wrap("$L ? $L : $L", needNewLine), myCondition.generate(), myTrue.generate(), myFalse.generate());
 	}
 }

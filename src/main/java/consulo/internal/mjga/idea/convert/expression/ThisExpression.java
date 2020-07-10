@@ -11,6 +11,6 @@ public class ThisExpression extends Expression
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("this");
+		return CodeBlock.of(wrap("this", needNewLine));
 	}
 }

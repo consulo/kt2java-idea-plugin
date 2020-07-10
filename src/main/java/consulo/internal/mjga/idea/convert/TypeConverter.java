@@ -79,6 +79,11 @@ public class TypeConverter
 
 		List<TypeName> newArgs = arguments.stream().map(typeProjection -> convertKotlinType(typeProjection.getType())).collect(Collectors.toList());
 
+		if(typeName.equals(ClassName.get("kotlin", "Array")) && newArgs.size() == 1)
+		{
+			return ArrayTypeName.of(newArgs.get(0));
+		}
+
 		return ParameterizedTypeName.get((ClassName) typeName, newArgs.toArray(new TypeName[0]));
 	}
 

@@ -6,6 +6,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.containers.ContainerUtil;
+import com.squareup.javapoet.ArrayTypeName;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.expression.*;
@@ -370,9 +371,37 @@ public class ExpressionConveter extends KtVisitorVoid
 				}
 			}
 
-			genCall = FunctionRemapper.remap(call, genCall);
-			myGeneratedElement = new MethodCallExpression(genCall, args);
+			if(isFunctionFromPackage(resultingDescriptor, "kotlin", "arrayOf"))
+			{
+				Map<TypeParameterDescriptor, KotlinType> typeArguments = call.getTypeArguments();
+
+				KotlinType first = ContainerUtil.getFirstItem(typeArguments.values());
+
+				ArrayTypeName arrayType = ArrayTypeName.of(TypeConverter.convertKotlinType(first));
+
+				myGeneratedElement = new NewArrayExpression(arrayType, args);
+			}
+			else
+			{
+				genCall = FunctionRemapper.remap(call, genCall);
+				myGeneratedElement = new MethodCallExpression(genCall, args);
+			}
 		}
+	}
+
+	private static boolean isFunctionFromPackage(CallableDescriptor callableDescriptor, String packageName, @NotNull String name)
+	{
+		if(callableDescriptor instanceof FunctionDescriptor && name.equals(callableDescriptor.getName().asString()))
+		{
+			DeclarationDescriptor containingDeclaration = callableDescriptor.getContainingDeclaration();
+
+			if(containingDeclaration instanceof PackageFragmentDescriptor)
+			{
+				return packageName.equals(((PackageFragmentDescriptor) containingDeclaration).getFqName().asString());
+			}
+		}
+
+		return false;
 	}
 
 	@Override

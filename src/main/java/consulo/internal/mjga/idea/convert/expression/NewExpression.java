@@ -1,5 +1,6 @@
 package consulo.internal.mjga.idea.convert.expression;
 
+import com.squareup.javapoet.ArrayTypeName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
@@ -25,6 +26,11 @@ public class NewExpression extends Expression
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of(wrap("new $T($L)", needNewLine), myTypeName, CodeBlock.join(myArguments.stream().map(GeneratedElement::generate).collect(Collectors.toList()), ", "));
+		CodeBlock args = CodeBlock.join(myArguments.stream().map(GeneratedElement::generate).collect(Collectors.toList()), ", ");
+		if(myTypeName instanceof ArrayTypeName)
+		{
+			return CodeBlock.of(wrap("new $T[$L]", needNewLine), ((ArrayTypeName) myTypeName).componentType, args);
+		}
+		return CodeBlock.of(wrap("new $T($L)", needNewLine), myTypeName, args);
 	}
 }

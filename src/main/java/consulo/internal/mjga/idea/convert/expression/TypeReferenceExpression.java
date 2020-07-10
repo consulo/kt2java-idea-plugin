@@ -19,6 +19,6 @@ public class TypeReferenceExpression extends Expression
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("$T", myTypeName);
+		return CodeBlock.of(wrap("$T", needNewLine), myTypeName);
 	}
 }

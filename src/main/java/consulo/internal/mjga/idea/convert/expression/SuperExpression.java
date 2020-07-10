@@ -11,6 +11,6 @@ public class SuperExpression extends Expression
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{
-		return CodeBlock.of("super");
+		return CodeBlock.of(wrap("super", needNewLine));
 	}
 }
