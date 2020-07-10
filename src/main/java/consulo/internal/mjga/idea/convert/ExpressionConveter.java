@@ -116,23 +116,30 @@ public class ExpressionConveter extends KtVisitorVoid
 					myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Collections.emptyList());
 				}
 
-				if(receiverResult.getContainingDeclaration() instanceof PackageFragmentDescriptor)
-				{
-					SourceFile containingFile = ((PropertyDescriptor) receiverResult).getSource().getContainingFile();
-
-					PsiFile file = containingFile instanceof PsiSourceFile ? ((PsiSourceFile) containingFile).getPsiFile() : null;
-
-					if(file instanceof KtFile)
-					{
-						@NotNull KtToJavaClassBinder classBinder = myContext.bind((KtFile) file);
-
-						ClassName name = ClassName.get(classBinder.getPackageName(), classBinder.getClassName());
-
-						myGeneratedElement = new StaticTypeQualifiedExpression(name, myGeneratedElement);
-					}
-				}
+				myGeneratedElement = modifyCallIfPackageOwner((PropertyDescriptor) receiverResult, myGeneratedElement);
 			}
 		}
+	}
+
+	private GeneratedElement modifyCallIfPackageOwner(CallableDescriptor receiverResult, GeneratedElement element)
+	{
+		if(receiverResult.getContainingDeclaration() instanceof PackageFragmentDescriptor)
+		{
+			SourceFile containingFile = receiverResult.getSource().getContainingFile();
+
+			PsiFile file = containingFile instanceof PsiSourceFile ? ((PsiSourceFile) containingFile).getPsiFile() : null;
+
+			if(file instanceof KtFile)
+			{
+				@NotNull KtToJavaClassBinder classBinder = myContext.bind((KtFile) file);
+
+				ClassName name = ClassName.get(classBinder.getPackageName(), classBinder.getClassName());
+
+				return new StaticTypeQualifiedExpression(name, element);
+			}
+		}
+
+		return element;
 	}
 
 	@Override
@@ -384,7 +391,10 @@ public class ExpressionConveter extends KtVisitorVoid
 			else
 			{
 				genCall = FunctionRemapper.remap(call, genCall);
+
 				myGeneratedElement = new MethodCallExpression(genCall, args);
+
+				myGeneratedElement = modifyCallIfPackageOwner(resultingDescriptor, myGeneratedElement);
 			}
 		}
 	}
@@ -497,7 +507,7 @@ public class ExpressionConveter extends KtVisitorVoid
 		boolean canByTernary = false;
 
 		PsiElement parent = expression.getParent();
-		if(parent instanceof KtProperty || parent instanceof KtBinaryExpression || parent instanceof KtValueArgument)
+		if(parent instanceof KtProperty || parent instanceof KtBinaryExpression || parent instanceof KtValueArgument || parent instanceof KtReturnExpression)
 		{
 			canByTernary = true;
 		}
