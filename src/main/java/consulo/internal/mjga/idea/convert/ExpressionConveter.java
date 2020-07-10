@@ -1,9 +1,11 @@
 package consulo.internal.mjga.idea.convert;
 
+import com.intellij.openapi.util.Couple;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.tree.IElementType;
+import com.intellij.util.containers.ContainerUtil;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.expression.*;
@@ -499,6 +501,61 @@ public class ExpressionConveter extends KtVisitorVoid
 	{
 		KtExpression thrownExpression = expression.getThrownExpression();
 		myGeneratedElement = new ThrowStatement(convertNonnull(thrownExpression));
+	}
+
+	@Override
+	public void visitWhenExpression(KtWhenExpression expression)
+	{
+		GeneratedElement subjectExpression = convertNonnull(expression.getSubjectExpression());
+
+		List<KtWhenEntry> entries = expression.getEntries();
+
+		List<Couple<GeneratedElement>> ifParts = new ArrayList<>();
+
+		GeneratedElement elseItem = null;
+
+		for(KtWhenEntry entry : entries)
+		{
+			GeneratedElement whenExpr = convertNonnull(entry.getExpression());
+
+			PsiElement elseKeyword = entry.getElseKeyword();
+
+			for(KtWhenCondition ktWhenCondition : entry.getConditions())
+			{
+				if(ktWhenCondition instanceof KtWhenConditionWithExpression)
+				{
+					GeneratedElement inner = convertNonnull(((KtWhenConditionWithExpression) ktWhenCondition).getExpression());
+
+					MethodCallExpression equalsCall = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(subjectExpression, inner));
+
+					ifParts.add(Couple.of(equalsCall, whenExpr));
+				}
+				else
+				{
+					ifParts.add(Couple.of(convertNonnull(ktWhenCondition), whenExpr));
+				}
+			}
+
+			if(elseKeyword != null)
+			{
+				elseItem = whenExpr;
+			}
+		}
+
+		List<Couple<GeneratedElement>> reverse = ContainerUtil.reverse(ifParts);
+
+		IfStatement prevStatement = null;
+
+		for(Couple<GeneratedElement> ifPart : reverse)
+		{
+			GeneratedElement elsePart = prevStatement == null ? elseItem : prevStatement;
+
+			IfStatement ifStatement = new IfStatement(ifPart.getFirst(), ifPart.getSecond(), elsePart);
+
+			prevStatement = ifStatement;
+		}
+
+		myGeneratedElement = prevStatement;
 	}
 
 	@Override
