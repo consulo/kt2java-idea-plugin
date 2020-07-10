@@ -146,7 +146,8 @@ public class MemberConverter
 				break;
 		}
 
-		boolean containsAnyChild = ReadAction.compute(() -> convert(context, builder, binder.getJavaWrapper(), isInterface));
+		boolean forcePublic = sourceElement instanceof KtFile;
+		boolean containsAnyChild = ReadAction.compute(() -> convert(context, builder, binder.getJavaWrapper(), isInterface, forcePublic));
 
 		if(!containsAnyChild)
 		{
@@ -179,7 +180,7 @@ public class MemberConverter
 		});
 	}
 
-	private static boolean convert(ConvertContext context, TypeSpec.Builder builder, PsiClass javaWrapper, boolean isInterface)
+	private static boolean convert(ConvertContext context, TypeSpec.Builder builder, PsiClass javaWrapper, boolean isInterface, boolean forcePublic)
 	{
 		if(!(javaWrapper instanceof PsiExtensibleClass))
 		{
@@ -224,7 +225,7 @@ public class MemberConverter
 
 			if("Companion".equals(innerClass.getName()))
 			{
-				hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) innerClass, ktClassOrObject, false, (p, f) -> {
+				hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) innerClass, ktClassOrObject, false, false,  (p, f) -> {
 					f.addModifiers(Modifier.STATIC);
 					builder.addField(f.build());
 				}, (p, m) -> {
@@ -239,7 +240,7 @@ public class MemberConverter
 			}
 		}
 
-		hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, (p, f) -> builder.addField(f.build()), (p, m) -> builder.addMethod(m.build()));
+		hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, forcePublic, (p, f) -> builder.addField(f.build()), (p, m) -> builder.addMethod(m.build()));
 		return hasAnyChild;
 	}
 
@@ -248,6 +249,7 @@ public class MemberConverter
 									  @NotNull PsiExtensibleClass javaWrapper,
 									  @Nullable KtClassOrObject ktClassOrObject,
 									  boolean isInterface,
+									  boolean forcePublic,
 									  @NotNull BiConsumer<PsiField, FieldSpec.Builder> fieldBuilders,
 									  @NotNull BiConsumer<PsiMethod, MethodSpec.Builder> methodBuilders)
 	{
@@ -264,7 +266,7 @@ public class MemberConverter
 
 			hasAnyChild = true;
 
-			FieldSpec.Builder fieldBuilder = FieldSpec.builder(TypeConverter.convertJavaPsiType(field.getType()), safeName(field.getName()), convertModifiers(field, isInterface));
+			FieldSpec.Builder fieldBuilder = FieldSpec.builder(TypeConverter.convertJavaPsiType(field.getType()), safeName(field.getName()), convertModifiers(field, isInterface, forcePublic));
 
 			if(field instanceof KtLightFieldForSourceDeclarationSupport)
 			{
@@ -327,7 +329,7 @@ public class MemberConverter
 
 			String methodName = safeName(methodOrConstructor.getName());
 			MethodSpec.Builder methodBuilder = isConstructor ? MethodSpec.constructorBuilder() : MethodSpec.methodBuilder(methodName);
-			methodBuilder.addModifiers(convertModifiers(methodOrConstructor, isInterface));
+			methodBuilder.addModifiers(convertModifiers(methodOrConstructor, isInterface, forcePublic));
 			if(!isConstructor)
 			{
 				methodBuilder.returns(TypeConverter.convertJavaPsiType(methodOrConstructor.getReturnType()));
@@ -538,10 +540,10 @@ public class MemberConverter
 
 	private static Modifier[] convertModifiers(PsiModifierListOwner owner)
 	{
-		return convertModifiers(owner, false);
+		return convertModifiers(owner, false, false);
 	}
 
-	private static Modifier[] convertModifiers(PsiModifierListOwner owner, boolean isInterface)
+	private static Modifier[] convertModifiers(PsiModifierListOwner owner, boolean isInterface, boolean forcePublic)
 	{
 		List<Modifier> modifiers = new ArrayList<>();
 		if(isInterface)
@@ -560,19 +562,26 @@ public class MemberConverter
 			};
 		}
 
-		if(owner.hasModifier(JvmModifier.PUBLIC))
+		if(!forcePublic)
+		{
+			if(owner.hasModifier(JvmModifier.PUBLIC))
+			{
+				modifiers.add(Modifier.PUBLIC);
+			}
+
+			if(owner.hasModifier(JvmModifier.PRIVATE))
+			{
+				modifiers.add(Modifier.PRIVATE);
+			}
+
+			if(owner.hasModifier(JvmModifier.PROTECTED))
+			{
+				modifiers.add(Modifier.PROTECTED);
+			}
+		}
+		else
 		{
 			modifiers.add(Modifier.PUBLIC);
-		}
-
-		if(owner.hasModifier(JvmModifier.PRIVATE))
-		{
-			modifiers.add(Modifier.PRIVATE);
-		}
-
-		if(owner.hasModifier(JvmModifier.PROTECTED))
-		{
-			modifiers.add(Modifier.PROTECTED);
 		}
 
 		if(owner.hasModifier(JvmModifier.FINAL))
