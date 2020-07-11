@@ -576,6 +576,10 @@ public class ExpressionConveter extends KtVisitorVoid
 			myGeneratedElement = new AssignExpression(leftGen, rightGen);
 			return;
 		}
+
+		String text = expression.getOperationReference().getText();
+
+		myGeneratedElement = new BinaryExpression(leftGen, rightGen, text);
 	}
 
 	@Override
