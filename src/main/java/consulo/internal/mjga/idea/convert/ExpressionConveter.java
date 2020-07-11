@@ -205,6 +205,13 @@ public class ExpressionConveter extends KtVisitorVoid
 		{
 			myGeneratedElement = new PrefixExpression("!", generatedElement);
 		}
+		else
+		{
+			String text = expression.getOperationReference().getText();
+
+			// TODO some another handle?
+			myGeneratedElement = new PrefixExpression(text, generatedElement);
+		}
 	}
 
 	@Override
