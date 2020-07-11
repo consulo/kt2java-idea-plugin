@@ -17,8 +17,12 @@ import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.squareup.javapoet.*;
+import consulo.internal.mjga.idea.convert.expression.NewExpression;
+import consulo.internal.mjga.idea.convert.expression.ReferenceExpression;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.statement.ReturnStatement;
+import consulo.internal.mjga.idea.convert.statement.ThrowStatement;
+import consulo.internal.mjga.idea.convert.statement.TryCatchStatement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
@@ -226,7 +230,7 @@ public class MemberConverter
 
 			if("Companion".equals(innerClass.getName()))
 			{
-				hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) innerClass, ktClassOrObject, false, false,  (p, f) -> {
+				hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) innerClass, ktClassOrObject, false, false, (p, f) -> {
 					f.addModifiers(Modifier.STATIC);
 					builder.addField(f.build());
 				}, (p, m) -> {
@@ -241,7 +245,8 @@ public class MemberConverter
 			}
 		}
 
-		hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, forcePublic, (p, f) -> builder.addField(f.build()), (p, m) -> builder.addMethod(m.build()));
+		hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, forcePublic, (p, f) -> builder.addField(f.build()), (p, m) -> builder
+				.addMethod(m.build()));
 		return hasAnyChild;
 	}
 
@@ -399,7 +404,7 @@ public class MemberConverter
 							setBody(methodBuilder, setter, context);
 						}
 					}
-					
+
 					if(wantDefault)
 					{
 						methodBuilder.addCode(CodeBlock.of("this.$L = $L;", name, name));
@@ -545,15 +550,24 @@ public class MemberConverter
 			body = declarationWithBody.getBodyExpression();
 		}
 
+		GeneratedElement inner;
 		GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body, context);
 		if(body instanceof KtBlockExpression)
 		{
-			methodBuilder.addCode(generatedElement.generate());
+			inner = generatedElement;
 		}
 		else
 		{
-			methodBuilder.addCode(new ReturnStatement(generatedElement).wantSemicolon(true).generate());
+			inner = new ReturnStatement(generatedElement).wantSemicolon(true);
 		}
+
+		List<TryCatchStatement.Catch> list = new ArrayList<>();
+		ThrowStatement rethrow = new ThrowStatement(new NewExpression(TypeName.get(RuntimeException.class), Collections.singletonList(new ReferenceExpression("__e"))));
+		list.add(new TryCatchStatement.Catch("__e", TypeName.get(Exception.class), rethrow));
+
+		TryCatchStatement statement = new TryCatchStatement(inner, list);
+
+		methodBuilder.addCode(statement.generate());
 	}
 
 	public static String safeName(String name)

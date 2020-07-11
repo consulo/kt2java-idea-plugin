@@ -50,7 +50,7 @@ public class TryCatchStatement extends Statement
 		{
 			builder.beginControlFlow("catch($T $L)", aCatch.type, aCatch.name);
 
-			builder.add(aCatch.block.generate());
+			builder.add(aCatch.block.wantSemicolon(true).generate(true));
 
 			builder.endControlFlow();
 		}
