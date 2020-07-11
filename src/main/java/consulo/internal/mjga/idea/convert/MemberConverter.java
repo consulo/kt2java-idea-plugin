@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.asJava.KotlinAsJavaSupport;
 import org.jetbrains.kotlin.asJava.builder.LightMemberOrigin;
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade;
 import org.jetbrains.kotlin.asJava.classes.KtUltraLightMethodForSourceDeclaration;
+import org.jetbrains.kotlin.asJava.classes.KtUltraLightParameterForSource;
 import org.jetbrains.kotlin.asJava.elements.KtLightElement;
 import org.jetbrains.kotlin.asJava.elements.KtLightFieldForSourceDeclarationSupport;
 import org.jetbrains.kotlin.psi.*;
@@ -292,6 +293,17 @@ public class MemberConverter
 			fieldBuilders.accept(field, fieldBuilder);
 		}
 
+		List<GeneratedElement> constructorInit = new ArrayList<>();
+		if(ktClassOrObject != null)
+		{
+			List<KtAnonymousInitializer> anonymousInitializers = ktClassOrObject.getAnonymousInitializers();
+
+			for(KtAnonymousInitializer anonymousInitializer : anonymousInitializers)
+			{
+				constructorInit.add(ExpressionConveter.convertNonnull(anonymousInitializer.getBody(), context));
+			}
+		}
+
 		List<PsiMethod> ownMethods = javaWrapper.getOwnMethods();
 		for(PsiMethod methodOrConstructor : ownMethods)
 		{
@@ -402,8 +414,23 @@ public class MemberConverter
 				{
 					for(PsiParameter parameter : parameters)
 					{
+						if(parameter instanceof KtUltraLightParameterForSource)
+						{
+							KtParameter sourceElement = ((KtUltraLightParameterForSource) parameter).getKotlinOrigin();
+
+							// if var or val not set - it just reference parameter, without backend field
+							if(sourceElement.getValOrVarKeyword() == null)
+							{
+								continue;
+							}
+						}
 						methodBuilder.addCode(CodeBlock.of("this.$L = $L;\n", parameter.getName(), parameter.getName()));
 					}
+				}
+
+				for(GeneratedElement element : constructorInit)
+				{
+					methodBuilder.addCode(element.generate(true));
 				}
 			}
 			else if(ktClassOrObject instanceof KtClass && ((KtClass) ktClassOrObject).isData())
