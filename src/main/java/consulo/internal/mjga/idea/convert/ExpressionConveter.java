@@ -22,6 +22,8 @@ import org.jetbrains.kotlin.descriptors.impl.TypeAliasConstructorDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.load.java.sam.SamConstructorDescriptor;
+import org.jetbrains.kotlin.name.FqName;
+import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
@@ -109,16 +111,57 @@ public class ExpressionConveter extends KtVisitorVoid
 			}
 			else if(receiverResult instanceof PropertyDescriptor)
 			{
-				PropertyGetterDescriptor getter = ((PropertyDescriptor) receiverResult).getGetter();
-				if(getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != Visibilities.PRIVATE && !((PropertyDescriptor) receiverResult).isConst())
+				if(isClassMember(receiverResult, "kotlin.Array", "size"))
 				{
-					String methodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
-					myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Collections.emptyList());
+					myGeneratedElement = new ReferenceExpression("length");
 				}
+				else
+				{
+					PropertyGetterDescriptor getter = ((PropertyDescriptor) receiverResult).getGetter();
+					if(getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != Visibilities.PRIVATE && !((PropertyDescriptor) receiverResult).isConst())
+					{
+						String methodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
+						myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Collections.emptyList());
+					}
 
-				myGeneratedElement = modifyCallIfPackageOwner((PropertyDescriptor) receiverResult, myGeneratedElement);
+					myGeneratedElement = modifyCallIfPackageOwner((PropertyDescriptor) receiverResult, myGeneratedElement);
+				}
 			}
 		}
+	}
+
+	private boolean isClassMember(DeclarationDescriptor descriptor, String fqName, String name)
+	{
+		CallableMemberDescriptor callableMemberDescriptor = (CallableMemberDescriptor) descriptor;
+
+		if(name.equals(callableMemberDescriptor.getName().asString()))
+		{
+			DeclarationDescriptor containingDeclaration = callableMemberDescriptor.getContainingDeclaration();
+
+			if(containingDeclaration instanceof ClassDescriptor)
+			{
+				FqName requireFqName = FqName.fromSegments(StringUtil.split(fqName, "."));
+
+				return buildFqName(containingDeclaration).equals(requireFqName);
+			}
+		}
+		return false;
+	}
+
+	private FqName buildFqName(DeclarationDescriptor descriptor)
+	{
+		if(descriptor instanceof ClassDescriptor)
+		{
+			DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
+
+			return buildFqName(containingDeclaration).child(descriptor.getName());
+		}
+		else if(descriptor instanceof PackageFragmentDescriptor)
+		{
+			return ((PackageFragmentDescriptor) descriptor).getFqName();
+		}
+
+		return FqName.topLevel(Name.identifier("error"));
 	}
 
 	private GeneratedElement modifyCallIfPackageOwner(CallableDescriptor receiverResult, GeneratedElement element)
