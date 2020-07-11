@@ -678,4 +678,10 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		myGeneratedElement = new BlockStatement(generatedElements);
 	}
+
+	@Override
+	public void visitContinueExpression(KtContinueExpression expression)
+	{
+		myGeneratedElement = new ContinueStatement();
+	}
 }
