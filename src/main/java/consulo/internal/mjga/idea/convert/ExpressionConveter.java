@@ -161,13 +161,20 @@ public class ExpressionConveter extends KtVisitorVoid
 	@Override
 	public void visitIsExpression(KtIsExpression expression)
 	{
-		@NotNull GeneratedElement generatedElement = convertNonnull(expression.getLeftHandSide());
+		boolean isNot = expression.getOperationReference().getReferencedNameElementType() == KtTokens.NOT_IS;
+
+		GeneratedElement generatedElement = convertNonnull(expression.getLeftHandSide());
 
 		BindingContext context = ResolutionUtils.analyze(expression.getTypeReference());
 
 		KotlinType type = context.get(BindingContext.TYPE, expression.getTypeReference());
 
 		myGeneratedElement = new InstanceOfExpression(generatedElement, TypeConverter.convertKotlinType(type));
+
+		if(isNot)
+		{
+			myGeneratedElement = new PrefixExpression("!", new ParExpression(myGeneratedElement));
+		}
 	}
 
 	@Override
