@@ -637,6 +637,26 @@ public class ExpressionConveter extends KtVisitorVoid
 	}
 
 	@Override
+	public void visitForExpression(KtForExpression expression)
+	{
+		// TODO wrap to for() statement
+
+		KtParameter loopParameter = expression.getLoopParameter();
+
+		@NotNull GeneratedElement block = convertNonnull(expression.getBody());
+
+		BindingContext context = ResolutionUtils.analyze(loopParameter);
+
+		@NotNull GeneratedElement range = convertNonnull(expression.getLoopRange());
+
+		LocalVariableDescriptor descriptor = (LocalVariableDescriptor) context.get(BindingContext.DECLARATION_TO_DESCRIPTOR, loopParameter);
+
+		@NotNull TypeName typeName = TypeConverter.convertKotlinType(descriptor.getType());
+
+		myGeneratedElement = new ForEachStatement(typeName, descriptor.getName().asString(), range, block);
+	}
+
+	@Override
 	public void visitBlockExpression(KtBlockExpression expression)
 	{
 		List<KtExpression> statements = expression.getStatements();
