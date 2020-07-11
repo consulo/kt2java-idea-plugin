@@ -52,6 +52,9 @@ public class TypeConverter
 	static
 	{
 		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.MutableSet"), ClassName.get(Set.class));
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.Set"), ClassName.get(Set.class));
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.List"), ClassName.get(List.class));
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.MutableList"), ClassName.get(List.class));
 		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.ByteArray"), ArrayTypeName.of(TypeName.BYTE));
 		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.ShortArray"), ArrayTypeName.of(TypeName.SHORT));
 		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.IntArray"), ArrayTypeName.of(TypeName.INT));
