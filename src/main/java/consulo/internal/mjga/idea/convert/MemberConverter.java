@@ -599,6 +599,16 @@ public class MemberConverter
 			modifiers.add(Modifier.STATIC);
 		}
 
+		if(owner.hasModifier(JvmModifier.SYNCHRONIZED))
+		{
+			modifiers.add(Modifier.SYNCHRONIZED);
+		}
+
+		if(owner.hasModifier(JvmModifier.VOLATILE))
+		{
+			modifiers.add(Modifier.VOLATILE);
+		}
+
 		return modifiers.toArray(new Modifier[0]);
 	}
 }
