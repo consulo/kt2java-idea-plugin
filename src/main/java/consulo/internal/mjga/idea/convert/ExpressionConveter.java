@@ -111,7 +111,13 @@ public class ExpressionConveter extends KtVisitorVoid
 			}
 			else if(receiverResult instanceof PropertyDescriptor)
 			{
-				if(isClassMember(receiverResult, "kotlin.Array", "size"))
+				if(isClassMember(receiverResult, "kotlin.Array", "size") ||
+						isClassMember(receiverResult, "kotlin.ByteArray", "size") ||
+						isClassMember(receiverResult, "kotlin.ShortArray", "size") ||
+						isClassMember(receiverResult, "kotlin.LongArray", "size") ||
+						isClassMember(receiverResult, "kotlin.DoubleArray", "size") ||
+						isClassMember(receiverResult, "kotlin.FloatArray", "size") ||
+						isClassMember(receiverResult, "kotlin.IntArray", "size"))
 				{
 					myGeneratedElement = new ReferenceExpression("length");
 				}
