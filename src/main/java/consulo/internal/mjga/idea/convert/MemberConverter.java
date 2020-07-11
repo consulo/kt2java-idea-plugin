@@ -17,9 +17,12 @@ import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.squareup.javapoet.*;
+import consulo.internal.mjga.idea.convert.expression.MethodCallExpression;
 import consulo.internal.mjga.idea.convert.expression.NewExpression;
 import consulo.internal.mjga.idea.convert.expression.ReferenceExpression;
+import consulo.internal.mjga.idea.convert.expression.SuperExpression;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
+import consulo.internal.mjga.idea.convert.statement.ExpressionStatement;
 import consulo.internal.mjga.idea.convert.statement.ReturnStatement;
 import consulo.internal.mjga.idea.convert.statement.ThrowStatement;
 import consulo.internal.mjga.idea.convert.statement.TryCatchStatement;
@@ -417,6 +420,26 @@ public class MemberConverter
 
 				if(primaryConstructor != null)
 				{
+					List<KtSuperTypeListEntry> superTypeListEntries = ktClassOrObject.getSuperTypeListEntries();
+					for(KtSuperTypeListEntry superTypeListEntry : superTypeListEntries)
+					{
+						if(superTypeListEntry instanceof KtSuperTypeCallEntry)
+						{
+							//KtConstructorCalleeExpression calleeExpression = ((KtSuperTypeCallEntry) superTypeListEntry).getCalleeExpression();
+
+							List<? extends ValueArgument> valueArguments = ((KtSuperTypeCallEntry) superTypeListEntry).getValueArguments();
+
+							List<GeneratedElement> args = new ArrayList<>();
+							for(ValueArgument argument : valueArguments)
+							{
+								args.add(ExpressionConveter.convertNonnull(argument.getArgumentExpression(), context));
+							}
+
+							MethodCallExpression expression = new MethodCallExpression(new SuperExpression(), args);
+							methodBuilder.addCode(new ExpressionStatement(expression).wantSemicolon(true).generate(true));
+						}
+					}
+
 					for(PsiParameter parameter : parameters)
 					{
 						if(parameter instanceof KtUltraLightParameterForSource)
