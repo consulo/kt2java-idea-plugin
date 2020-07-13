@@ -136,11 +136,11 @@ public class MemberConverter
 
 		TypeSpec.Builder builder;
 
-		boolean isInterface;
+		boolean isInterface = false;
+		boolean isEnum = false;
 		switch(binder.getSourceClassType())
 		{
 			default:
-				isInterface = false;
 				builder = TypeSpec.classBuilder(binder.getClassName());
 				break;
 			case INTERFACE:
@@ -148,14 +148,15 @@ public class MemberConverter
 				builder = TypeSpec.interfaceBuilder(binder.getClassName());
 				break;
 			case ENUM:
-				// todo
-				isInterface = false;
-				builder = TypeSpec.classBuilder(binder.getClassName());
+				isEnum = true;
+				builder = TypeSpec.enumBuilder(binder.getClassName());
 				break;
 		}
 
 		boolean forcePublic = sourceElement instanceof KtFile;
-		boolean containsAnyChild = ReadAction.compute(() -> convert(context, builder, binder.getJavaWrapper(), isInterface, forcePublic));
+		final boolean finalIsInterface = isInterface;
+		final boolean finalIsEnum = isEnum;
+		boolean containsAnyChild = ReadAction.compute(() -> convertClass(context, builder, binder.getJavaWrapper(), finalIsInterface, finalIsEnum, forcePublic));
 
 		if(!containsAnyChild)
 		{
@@ -188,7 +189,7 @@ public class MemberConverter
 		});
 	}
 
-	private static boolean convert(ConvertContext context, TypeSpec.Builder builder, PsiClass javaWrapper, boolean isInterface, boolean forcePublic)
+	private static boolean convertClass(ConvertContext context, TypeSpec.Builder builder, PsiClass javaWrapper, boolean isInterface, boolean isEnum, boolean forcePublic)
 	{
 		if(!(javaWrapper instanceof PsiExtensibleClass))
 		{
@@ -210,10 +211,13 @@ public class MemberConverter
 			}
 		}
 
-		JvmReferenceType superClass = javaWrapper.getSuperClassType();
-		if(superClass != null)
+		if(!isEnum)
 		{
-			builder.superclass(TypeConverter.convertJavaPsiType((PsiType) superClass));
+			JvmReferenceType superClass = javaWrapper.getSuperClassType();
+			if(superClass != null)
+			{
+				builder.superclass(TypeConverter.convertJavaPsiType((PsiType) superClass));
+			}
 		}
 
 		JvmReferenceType[] interfaceTypes = javaWrapper.getInterfaceTypes();
@@ -236,6 +240,8 @@ public class MemberConverter
 				hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) innerClass, ktClassOrObject, false, false, (p, f) -> {
 					f.addModifiers(Modifier.STATIC);
 					builder.addField(f.build());
+				}, (e, n) -> {
+					throw new UnsupportedOperationException();
 				}, (p, m) -> {
 					if(p.isConstructor())
 					{
@@ -248,8 +254,8 @@ public class MemberConverter
 			}
 		}
 
-		hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, forcePublic, (p, f) -> builder.addField(f.build()), (p, m) -> builder
-				.addMethod(m.build()));
+		hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, forcePublic, (p, f) -> builder.addField(f.build()), (e, n) -> builder
+				.addEnumConstant(n), (p, m) -> builder.addMethod(m.build()));
 		return hasAnyChild;
 	}
 
@@ -260,6 +266,7 @@ public class MemberConverter
 									  boolean isInterface,
 									  boolean forcePublic,
 									  @NotNull BiConsumer<PsiField, FieldSpec.Builder> fieldBuilders,
+									  @NotNull BiConsumer<PsiEnumConstant, String> enumConsumer,
 									  @NotNull BiConsumer<PsiMethod, MethodSpec.Builder> methodBuilders)
 	{
 		boolean hasAnyChild = false;
@@ -275,30 +282,37 @@ public class MemberConverter
 
 			hasAnyChild = true;
 
-			FieldSpec.Builder fieldBuilder = FieldSpec.builder(TypeConverter.convertJavaPsiType(field.getType()), safeName(field.getName()), convertModifiers(field, isInterface, forcePublic));
-
-			if(field instanceof KtLightFieldForSourceDeclarationSupport)
+			if(field instanceof PsiEnumConstant)
 			{
-				KtDeclaration kotlinOrigin = ((KtLightFieldForSourceDeclarationSupport) field).getKotlinOrigin();
+				enumConsumer.accept((PsiEnumConstant)field, field.getName());
+			}
+			else
+			{
+				FieldSpec.Builder fieldBuilder = FieldSpec.builder(TypeConverter.convertJavaPsiType(field.getType()), safeName(field.getName()), convertModifiers(field, isInterface, forcePublic));
 
-				if(kotlinOrigin instanceof KtProperty)
+				if(field instanceof KtLightFieldForSourceDeclarationSupport)
 				{
-					KtExpression initializer = ((KtProperty) kotlinOrigin).getInitializer();
+					KtDeclaration kotlinOrigin = ((KtLightFieldForSourceDeclarationSupport) field).getKotlinOrigin();
 
-					if(initializer != null)
+					if(kotlinOrigin instanceof KtProperty)
 					{
-						GeneratedElement codeBlock = ExpressionConveter.convertNonnull(initializer, context);
-						fieldBuilder.initializer(codeBlock.generate());
+						KtExpression initializer = ((KtProperty) kotlinOrigin).getInitializer();
+
+						if(initializer != null)
+						{
+							GeneratedElement codeBlock = ExpressionConveter.convertNonnull(initializer, context);
+							fieldBuilder.initializer(codeBlock.generate());
+						}
 					}
 				}
-			}
 
-			if(ktClassOrObject instanceof KtObjectDeclaration && "INSTANCE".equals(field.getName()))
-			{
-				fieldBuilder.initializer(CodeBlock.of("new $T()", thisTypeRef));
-			}
+				if(ktClassOrObject instanceof KtObjectDeclaration && "INSTANCE".equals(field.getName()))
+				{
+					fieldBuilder.initializer(CodeBlock.of("new $T()", thisTypeRef));
+				}
 
-			fieldBuilders.accept(field, fieldBuilder);
+				fieldBuilders.accept(field, fieldBuilder);
+			}
 		}
 
 		List<GeneratedElement> constructorInit = new ArrayList<>();
