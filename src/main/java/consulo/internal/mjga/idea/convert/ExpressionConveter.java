@@ -32,6 +32,7 @@ import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.kotlin.resolve.source.KotlinSourceElement;
 import org.jetbrains.kotlin.resolve.source.PsiSourceFile;
+import org.jetbrains.kotlin.synthetic.SyntheticJavaPropertyDescriptor;
 import org.jetbrains.kotlin.types.KotlinType;
 
 import java.util.*;
@@ -133,8 +134,16 @@ public class ExpressionConveter extends KtVisitorVoid
 					PropertyGetterDescriptor getter = ((PropertyDescriptor) receiverResult).getGetter();
 					if(getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != Visibilities.PRIVATE && !((PropertyDescriptor) receiverResult).isConst())
 					{
-						String methodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
-						myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Collections.emptyList());
+						String getMethodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
+
+						if(receiverResult instanceof SyntheticJavaPropertyDescriptor)
+						{
+							FunctionDescriptor getMethod = ((SyntheticJavaPropertyDescriptor) receiverResult).getGetMethod();
+
+							getMethodName = getMethod.getName().asString();
+						}
+
+						myGeneratedElement = new MethodCallExpression(new ReferenceExpression(getMethodName), Collections.emptyList());
 					}
 
 					myGeneratedElement = modifyCallIfPackageOwner((PropertyDescriptor) receiverResult, myGeneratedElement);
@@ -313,16 +322,21 @@ public class ExpressionConveter extends KtVisitorVoid
 				targetSelector = ((StaticTypeQualifiedExpression) targetSelector).getSelector();
 			}
 
-			if(targetSelector instanceof MethodCallExpression)
+			CallableDescriptor candidateDescriptor = call.getCandidateDescriptor();
+			// ignore syntetic java properties, they mapped as extension
+			if(!(candidateDescriptor instanceof SyntheticJavaPropertyDescriptor))
 			{
-				GeneratedElement oldCall = ((MethodCallExpression) targetSelector).getCall();
-				List<GeneratedElement> oldArguments = ((MethodCallExpression) targetSelector).getArguments();
+				if(targetSelector instanceof MethodCallExpression)
+				{
+					GeneratedElement oldCall = ((MethodCallExpression) targetSelector).getCall();
+					List<GeneratedElement> oldArguments = ((MethodCallExpression) targetSelector).getArguments();
 
-				ArrayList<GeneratedElement> newArgs = new ArrayList<>(oldArguments);
-				newArgs.add(0, receiverGenerate);
+					ArrayList<GeneratedElement> newArgs = new ArrayList<>(oldArguments);
+					newArgs.add(0, receiverGenerate);
 
-				MethodCallExpression newCall = new MethodCallExpression(oldCall, newArgs);
-				result = qualifiedType == null ? newCall : new StaticTypeQualifiedExpression(qualifiedType, newCall);
+					MethodCallExpression newCall = new MethodCallExpression(oldCall, newArgs);
+					result = qualifiedType == null ? newCall : new StaticTypeQualifiedExpression(qualifiedType, newCall);
+				}
 			}
 		}
 
