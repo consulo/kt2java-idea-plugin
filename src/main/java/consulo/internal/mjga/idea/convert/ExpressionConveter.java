@@ -593,26 +593,45 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression, BodyResolveMode.FULL);
 
-		if(call == null)
+		if(call == null && leftExpr != null)
 		{
-			if(leftExpr instanceof KtReferenceExpression)
+			ResolvedCall<? extends CallableDescriptor> leftCall = ResolutionUtils.resolveToCall(leftExpr, BodyResolveMode.FULL);
+
+			DeclarationDescriptor leftResult = leftCall.getCandidateDescriptor();
+
+			if(leftResult instanceof PropertyDescriptor)
 			{
-				BindingContext context = ResolutionUtils.analyze(leftExpr);
+				PropertySetterDescriptor setter = ((PropertyDescriptor) leftResult).getSetter();
 
-				DeclarationDescriptor leftResult = context.get(BindingContext.REFERENCE_TARGET, (KtReferenceExpression) leftExpr);
-
-				if(leftResult instanceof PropertyDescriptor)
+				if(setter == null || ((PropertyDescriptor) leftResult).getVisibility() == Visibilities.PRIVATE && !((PropertyDescriptor) leftResult).isConst())
 				{
-					PropertySetterDescriptor setter = ((PropertyDescriptor) leftResult).getSetter();
-
-					if(setter == null || ((PropertyDescriptor) leftResult).getVisibility() == Visibilities.PRIVATE && !((PropertyDescriptor) leftResult).isConst())
+					myGeneratedElement = new AssignExpression(convertNonnull(leftExpr), rightGen);
+				}
+				else
+				{
+					String setMethodName = "set" + StringUtil.capitalize(leftResult.getName().asString());
+					if(leftResult instanceof SyntheticJavaPropertyDescriptor)
 					{
-						myGeneratedElement = new AssignExpression(convertNonnull(leftExpr), rightGen);
+						FunctionDescriptor setMethod = ((SyntheticJavaPropertyDescriptor) leftResult).getSetMethod();
+
+						if(setMethod != null)
+						{
+							setMethodName = setMethod.getName().asString();
+						}
+					}
+
+
+					MethodCallExpression callExpr = new MethodCallExpression(new ReferenceExpression(setMethodName), Arrays.asList(rightGen));
+
+					if(leftGen instanceof QualifiedExpression)
+					{
+						GeneratedElement left = ((QualifiedExpression) leftGen).getLeft();
+
+						myGeneratedElement = new QualifiedExpression(left, callExpr);
 					}
 					else
 					{
-						String methodName = "set" + StringUtil.capitalize(leftResult.getName().asString());
-						myGeneratedElement = new MethodCallExpression(new ReferenceExpression(methodName), Arrays.asList(rightGen));
+						myGeneratedElement = callExpr;
 					}
 				}
 			}

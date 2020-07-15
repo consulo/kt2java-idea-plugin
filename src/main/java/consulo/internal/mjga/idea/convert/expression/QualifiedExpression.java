@@ -23,4 +23,14 @@ public class QualifiedExpression extends Expression
 	{
 		return CodeBlock.of(wrap("$L.$L", needNewLine), myLeft.generate(), myRight.generate());
 	}
+
+	public GeneratedElement getLeft()
+	{
+		return myLeft;
+	}
+
+	public GeneratedElement getRight()
+	{
+		return myRight;
+	}
 }
