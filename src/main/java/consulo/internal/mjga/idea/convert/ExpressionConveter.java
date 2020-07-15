@@ -636,6 +636,14 @@ public class ExpressionConveter extends KtVisitorVoid
 				}
 			}
 		}
+		else
+		{
+			String bitOperator = BitExpressionHelper.remapToBitExpression(call.getCandidateDescriptor());
+			if(bitOperator != null)
+			{
+				myGeneratedElement = new BinaryExpression(leftGen, rightGen, bitOperator);
+			}
+		}
 
 		if(myGeneratedElement != null)
 		{
