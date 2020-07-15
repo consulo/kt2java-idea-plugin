@@ -487,6 +487,30 @@ public class ExpressionConveter extends KtVisitorVoid
 
 				myGeneratedElement = new NewArrayExpression(arrayType, args);
 			}
+			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "byteArrayOf"))
+			{
+				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(byte.class), args);
+			}
+			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "shortArrayOf"))
+			{
+				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(short.class), args);
+			}
+			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "intArrayOf"))
+			{
+				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(int.class), args);
+			}
+			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "longArrayOf"))
+			{
+				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(long.class), args);
+			}
+			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "floatArrayOf"))
+			{
+				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(float.class), args);
+			}
+			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "doubleArrayOf"))
+			{
+				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(double.class), args);
+			}
 			else
 			{
 				genCall = FunctionRemapper.remap(call, genCall);
