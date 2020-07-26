@@ -1,8 +1,10 @@
 package consulo.internal.mjga.idea.convert;
 
 import com.intellij.psi.PsiArrayType;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiClassType;
 import com.intellij.psi.PsiType;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.squareup.javapoet.ArrayTypeName;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.ParameterizedTypeName;
@@ -15,8 +17,7 @@ import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.load.java.lazy.descriptors.LazyJavaClassDescriptor;
 import org.jetbrains.kotlin.load.java.structure.JavaClass;
 import org.jetbrains.kotlin.name.FqName;
-import org.jetbrains.kotlin.psi.KtClassOrObject;
-import org.jetbrains.kotlin.psi.KtElement;
+import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.kotlin.resolve.source.KotlinSourceElement;
 import org.jetbrains.kotlin.types.KotlinType;
@@ -125,6 +126,18 @@ public class TypeConverter
 
 				if(psi instanceof KtClassOrObject)
 				{
+					if(psi instanceof KtObjectDeclaration && ((KtObjectDeclaration) psi).isCompanion())
+					{
+						KtClass ktClass = PsiTreeUtil.getParentOfType(psi, KtClass.class);
+						assert ktClass != null;
+						return ClassName.bestGuess(ktClass.getFqName().toString());
+					}
+
+					if(psi.getParent() instanceof KtObjectLiteralExpression)
+					{
+						return ExpressionConveter.calculateAnonymousType((KtObjectLiteralExpression) psi.getParent());
+					}
+
 					FqName fqName = ((KtClassOrObject) psi).getFqName();
 
 					String qName = fqName.toString();
@@ -212,7 +225,18 @@ public class TypeConverter
 			PsiType[] parameters = ((PsiClassType) psiType).getParameters();
 			if(parameters.length > 0)
 			{
-				ClassName typeName = (ClassName) convertJavaPsiType(((PsiClassType) psiType).rawType());
+				PsiClassType rawType = ((PsiClassType) psiType).rawType();
+				ClassName typeName = null;
+				if(rawType == psiType)
+				{
+					PsiClass target = rawType.resolve();
+
+					typeName = ClassName.bestGuess(target.getQualifiedName());
+				}
+				else
+				{
+					typeName = (ClassName) convertJavaPsiType(rawType);
+				}
 
 				List<TypeName> mapArguments = Arrays.stream(parameters).map(TypeConverter::convertJavaPsiType).collect(Collectors.toList());
 				return ParameterizedTypeName.get(typeName, mapArguments.toArray(new TypeName[0]));

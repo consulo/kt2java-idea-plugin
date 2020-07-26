@@ -281,10 +281,11 @@ public class ExpressionConveter extends KtVisitorVoid
 		BindingContext context = ResolutionUtils.analyze(expression);
 
 		KtExpression receiver = expression.getReceiverExpression();
+		KtExpression selector = expression.getSelectorExpression();
 
 		GeneratedElement receiverGenerate = convertNonnull(receiver);
 
-		GeneratedElement selectorGenerate = convertNonnull(expression.getSelectorExpression());
+		GeneratedElement selectorGenerate = convertNonnull(selector);
 
 		if(receiver instanceof KtNameReferenceExpression)
 		{
@@ -306,41 +307,86 @@ public class ExpressionConveter extends KtVisitorVoid
 			}
 		}
 
-		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression.getSelectorExpression(), BodyResolveMode.FULL);
+		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(selector, BodyResolveMode.FULL);
 
 		GeneratedElement result = new QualifiedExpression(receiverGenerate, selectorGenerate);
 
-		// extension call
-		if(call != null && call.getExtensionReceiver() != null)
+		String bitToken = null;
+		if(call != null)
 		{
-			GeneratedElement targetSelector = selectorGenerate;
-			TypeName qualifiedType = null;
+			bitToken = BitExpressionHelper.remapToBitExpression(call.getCandidateDescriptor());
+		}
 
-			if(targetSelector instanceof StaticTypeQualifiedExpression)
+		if(bitToken != null)
+		{
+			result = new PrefixExpression(bitToken, receiverGenerate);
+		}
+		else
+		{
+			// extension call
+			if(call != null && call.getExtensionReceiver() != null)
 			{
-				qualifiedType = ((StaticTypeQualifiedExpression) targetSelector).getTypeName();
-				targetSelector = ((StaticTypeQualifiedExpression) targetSelector).getSelector();
-			}
+				GeneratedElement targetSelector = selectorGenerate;
+				TypeName qualifiedType = null;
 
-			CallableDescriptor candidateDescriptor = call.getCandidateDescriptor();
-			// ignore syntetic java properties, they mapped as extension
-			if(!(candidateDescriptor instanceof SyntheticJavaPropertyDescriptor))
-			{
-				if(targetSelector instanceof MethodCallExpression)
+				if(targetSelector instanceof StaticTypeQualifiedExpression)
 				{
-					GeneratedElement oldCall = ((MethodCallExpression) targetSelector).getCall();
-					List<GeneratedElement> oldArguments = ((MethodCallExpression) targetSelector).getArguments();
+					qualifiedType = ((StaticTypeQualifiedExpression) targetSelector).getTypeName();
+					targetSelector = ((StaticTypeQualifiedExpression) targetSelector).getSelector();
+				}
 
-					ArrayList<GeneratedElement> newArgs = new ArrayList<>(oldArguments);
-					newArgs.add(0, receiverGenerate);
+				CallableDescriptor candidateDescriptor = call.getCandidateDescriptor();
+				// ignore syntetic java properties, they mapped as extension
+				if(!(candidateDescriptor instanceof SyntheticJavaPropertyDescriptor))
+				{
+					if(targetSelector instanceof MethodCallExpression)
+					{
+						GeneratedElement oldCall = ((MethodCallExpression) targetSelector).getCall();
+						List<GeneratedElement> oldArguments = ((MethodCallExpression) targetSelector).getArguments();
 
-					MethodCallExpression newCall = new MethodCallExpression(oldCall, newArgs);
-					result = qualifiedType == null ? newCall : new StaticTypeQualifiedExpression(qualifiedType, newCall);
+						ArrayList<GeneratedElement> newArgs = new ArrayList<>(oldArguments);
+						newArgs.add(0, receiverGenerate);
+
+						MethodCallExpression newCall = new MethodCallExpression(oldCall, newArgs);
+						result = qualifiedType == null ? newCall : new StaticTypeQualifiedExpression(qualifiedType, newCall);
+					}
 				}
 			}
 		}
 
 		myGeneratedElement = result;
+	}
+
+	@Override
+	public void visitObjectLiteralExpression(KtObjectLiteralExpression expression)
+	{
+		TypeName typeName = calculateAnonymousType(expression);
+
+		myGeneratedElement = new AnonymousClassExpression(typeName);
+	}
+
+	public static TypeName calculateAnonymousType(KtObjectLiteralExpression expression)
+	{
+		// TODO [VISTALL] not supported multiple entries
+
+		KtObjectDeclaration objectDeclaration = expression.getObjectDeclaration();
+
+		List<KtSuperTypeListEntry> superTypeListEntries = objectDeclaration.getSuperTypeListEntries();
+
+		List<TypeName> types = new ArrayList<>();
+
+		for(KtSuperTypeListEntry entry : superTypeListEntries)
+		{
+			BindingContext context = ResolutionUtils.analyze(entry);
+
+			KotlinType kotlinType = context.get(BindingContext.TYPE, entry.getTypeReference());
+
+			@NotNull TypeName typeName = TypeConverter.convertKotlinType(kotlinType);
+
+			types.add(typeName);
+		}
+
+		return types.get(0);
 	}
 
 	@Override
