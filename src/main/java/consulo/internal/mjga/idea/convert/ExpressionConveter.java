@@ -21,7 +21,6 @@ import org.jetbrains.kotlin.descriptors.impl.SyntheticFieldDescriptor;
 import org.jetbrains.kotlin.descriptors.impl.TypeAliasConstructorDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
 import org.jetbrains.kotlin.lexer.KtTokens;
-import org.jetbrains.kotlin.load.java.sam.SamConstructorDescriptor;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.psi.*;
@@ -30,6 +29,7 @@ import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedValueArgument;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
+import org.jetbrains.kotlin.resolve.sam.SamConstructorDescriptor;
 import org.jetbrains.kotlin.resolve.source.KotlinSourceElement;
 import org.jetbrains.kotlin.resolve.source.PsiSourceFile;
 import org.jetbrains.kotlin.synthetic.SyntheticJavaPropertyDescriptor;
@@ -416,6 +416,22 @@ public class ExpressionConveter extends KtVisitorVoid
 	}
 
 	@Override
+	public void visitAnnotatedExpression(KtAnnotatedExpression expression)
+	{
+		// FIXME [VISTALL] we need handle annotations?
+
+		KtExpression baseExpression = expression.getBaseExpression();
+
+		myGeneratedElement = convertNonnull(baseExpression);
+	}
+
+	@Override
+	public void visitBreakExpression(KtBreakExpression expression)
+	{
+		myGeneratedElement = new BreakStatement(null);
+	}
+
+	@Override
 	public void visitStringTemplateExpression(KtStringTemplateExpression expression)
 	{
 		List<GeneratedElement> expressions = new ArrayList<>();
@@ -595,6 +611,23 @@ public class ExpressionConveter extends KtVisitorVoid
 		}
 
 		return false;
+	}
+
+	@Override
+	public void visitBinaryWithTypeRHSExpression(KtBinaryExpressionWithTypeRHS expression)
+	{
+		KtSimpleNameExpression operationReference = expression.getOperationReference();
+
+		if(operationReference.getReferencedNameElementType() == KtTokens.AS_KEYWORD)
+		{
+			BindingContext context = ResolutionUtils.analyze(expression.getRight());
+
+			KotlinType type = context.get(BindingContext.TYPE, expression.getRight());
+
+			@NotNull TypeName typeName = TypeConverter.convertKotlinType(type);
+
+			myGeneratedElement = new CastExpression(typeName, convertNonnull(expression.getLeft()));
+		}
 	}
 
 	@Override
