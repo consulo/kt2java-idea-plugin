@@ -6,11 +6,11 @@ import java.util.List;
 
 /**
  * @author VISTALL
- * @since 2020-07-08
+ * @since 18/02/2021
  */
-public class MethodCallExpression extends CallExpression
+public class ArrayAccessExpression extends CallExpression
 {
-	public MethodCallExpression(GeneratedElement call, List<GeneratedElement> arguments)
+	public ArrayAccessExpression(GeneratedElement call, List<GeneratedElement> arguments)
 	{
 		super(call, arguments);
 	}
@@ -18,6 +18,6 @@ public class MethodCallExpression extends CallExpression
 	@Override
 	public String getTemplate()
 	{
-		return "$L($L)";
+		return "$L[$L]";
 	}
 }

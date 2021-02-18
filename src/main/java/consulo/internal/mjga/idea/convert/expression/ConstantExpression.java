@@ -1,6 +1,7 @@
 package consulo.internal.mjga.idea.convert.expression;
 
 import com.squareup.javapoet.CodeBlock;
+import consulo.internal.mjga.idea.convert.GeneratedElement;
 
 /**
  * @author VISTALL
@@ -8,11 +9,21 @@ import com.squareup.javapoet.CodeBlock;
  */
 public class ConstantExpression extends Expression
 {
-	private String myText;
+	public static boolean isNull(GeneratedElement e)
+	{
+		return e instanceof ConstantExpression && ((ConstantExpression) e).isNull();
+	}
+
+	private final String myText;
 
 	public ConstantExpression(String text)
 	{
 		myText = text;
+	}
+
+	public boolean isNull()
+	{
+		return myText.equals("null");
 	}
 
 	@Override

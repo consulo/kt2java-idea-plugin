@@ -18,14 +18,10 @@ import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.expression.MethodCallExpression;
-import consulo.internal.mjga.idea.convert.expression.NewExpression;
-import consulo.internal.mjga.idea.convert.expression.ReferenceExpression;
 import consulo.internal.mjga.idea.convert.expression.SuperExpression;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.statement.ExpressionStatement;
 import consulo.internal.mjga.idea.convert.statement.ReturnStatement;
-import consulo.internal.mjga.idea.convert.statement.ThrowStatement;
-import consulo.internal.mjga.idea.convert.statement.TryCatchStatement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
@@ -598,13 +594,13 @@ public class MemberConverter
 			inner = new ReturnStatement(generatedElement).wantSemicolon(true);
 		}
 
-		List<TryCatchStatement.Catch> list = new ArrayList<>();
-		ThrowStatement rethrow = new ThrowStatement(new NewExpression(TypeName.get(RuntimeException.class), Collections.singletonList(new ReferenceExpression("__e"))));
-		list.add(new TryCatchStatement.Catch("__e", TypeName.get(Exception.class), rethrow));
+//		List<TryCatchStatement.Catch> list = new ArrayList<>();
+//		ThrowStatement rethrow = new ThrowStatement(new NewExpression(TypeName.get(RuntimeException.class), Collections.singletonList(new ReferenceExpression("__e"))));
+//		list.add(new TryCatchStatement.Catch("__e", TypeName.get(Exception.class), rethrow));
+//
+//		TryCatchStatement statement = new TryCatchStatement(inner, list);
 
-		TryCatchStatement statement = new TryCatchStatement(inner, list);
-
-		methodBuilder.addCode(statement.generate());
+		methodBuilder.addCode(inner.generate());
 	}
 
 	public static String safeName(String name)

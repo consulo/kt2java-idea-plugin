@@ -35,7 +35,9 @@ import org.jetbrains.kotlin.resolve.source.PsiSourceFile;
 import org.jetbrains.kotlin.synthetic.SyntheticJavaPropertyDescriptor;
 import org.jetbrains.kotlin.types.KotlinType;
 
+import javax.annotation.Nonnull;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author VISTALL
@@ -79,6 +81,12 @@ public class ExpressionConveter extends KtVisitorVoid
 	public void visitElement(@NotNull PsiElement element)
 	{
 		super.visitElement(element);
+	}
+
+	@Override
+	public void visitParenthesizedExpression(KtParenthesizedExpression expression)
+	{
+		myGeneratedElement = new ParExpression(convertNonnull(expression.getExpression()));
 	}
 
 	@Override
@@ -132,7 +140,7 @@ public class ExpressionConveter extends KtVisitorVoid
 				else
 				{
 					PropertyGetterDescriptor getter = ((PropertyDescriptor) receiverResult).getGetter();
-					if(getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != Visibilities.PRIVATE && !((PropertyDescriptor) receiverResult).isConst())
+					if(getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != DescriptorVisibilities.PRIVATE && !((PropertyDescriptor) receiverResult).isConst())
 					{
 						String getMethodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
 
@@ -228,6 +236,16 @@ public class ExpressionConveter extends KtVisitorVoid
 			// TODO some another handle?
 			myGeneratedElement = new PrefixExpression(text, generatedElement);
 		}
+	}
+
+	@Override
+	public void visitArrayAccessExpression(@Nonnull KtArrayAccessExpression expression)
+	{
+		GeneratedElement genCall = convertNonnull(expression.getArrayExpression());
+
+		List<GeneratedElement> args = expression.getIndexExpressions().stream().map(this::convertNonnull).collect(Collectors.toList());
+
+		myGeneratedElement = new ArrayAccessExpression(genCall, args);
 	}
 
 	@Override
@@ -641,13 +659,28 @@ public class ExpressionConveter extends KtVisitorVoid
 		IElementType operationToken = expression.getOperationToken();
 		if(operationToken == KtTokens.EQEQ)
 		{
-			myGeneratedElement = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
+			if(ConstantExpression.isNull(rightGen))
+			{
+				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "==");
+			}
+			else
+			{
+				myGeneratedElement = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
+			}
 			return;
 		}
 
 		if(operationToken == KtTokens.EXCLEQ)
 		{
-			myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
+			if(ConstantExpression.isNull(rightGen))
+			{
+				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "!=");
+			}
+			else
+			{
+				myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
+			}
+
 			return;
 		}
 
@@ -676,13 +709,13 @@ public class ExpressionConveter extends KtVisitorVoid
 		{
 			ResolvedCall<? extends CallableDescriptor> leftCall = ResolutionUtils.resolveToCall(leftExpr, BodyResolveMode.FULL);
 
-			DeclarationDescriptor leftResult = leftCall.getCandidateDescriptor();
+			DeclarationDescriptor leftResult = leftCall == null ? null : leftCall.getCandidateDescriptor();
 
 			if(leftResult instanceof PropertyDescriptor)
 			{
 				PropertySetterDescriptor setter = ((PropertyDescriptor) leftResult).getSetter();
 
-				if(setter == null || ((PropertyDescriptor) leftResult).getVisibility() == Visibilities.PRIVATE && !((PropertyDescriptor) leftResult).isConst())
+				if(setter == null || ((PropertyDescriptor) leftResult).getVisibility() == DescriptorVisibilities.PRIVATE && !((PropertyDescriptor) leftResult).isConst())
 				{
 					myGeneratedElement = new AssignExpression(convertNonnull(leftExpr), rightGen);
 				}
@@ -715,7 +748,7 @@ public class ExpressionConveter extends KtVisitorVoid
 				}
 			}
 		}
-		else
+		else if(call != null)
 		{
 			String bitOperator = BitExpressionHelper.remapToBitExpression(call.getCandidateDescriptor());
 			if(bitOperator != null)
