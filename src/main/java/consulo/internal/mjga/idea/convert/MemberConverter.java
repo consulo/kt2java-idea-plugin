@@ -248,6 +248,36 @@ public class MemberConverter
 					builder.addMethod(m.build());
 				});
 			}
+			else
+			{
+				TypeSpec.Builder innerBuilder;
+
+				boolean isInterface2 = false;
+				boolean isEnum2 = false;
+
+				if(innerClass.isInterface())
+				{
+					isInterface2 = true;
+					innerBuilder = TypeSpec.interfaceBuilder(innerClass.getName());
+
+				}
+				else if(innerClass.isEnum())
+				{
+					isEnum2 = true;
+					innerBuilder = TypeSpec.enumBuilder(innerClass.getName());
+				}
+				else
+				{
+					innerBuilder = TypeSpec.classBuilder(innerClass.getName());
+				}
+
+				final boolean finalIsInterface = isInterface2;
+				final boolean finalIsEnum = isEnum2;
+
+				convertClass(context, innerBuilder, innerClass, finalIsInterface, finalIsEnum, false);
+
+				builder.addType(innerBuilder.build());
+			}
 		}
 
 		hasAnyChild |= mapMembers(context, thisTypeRef, (PsiExtensibleClass) javaWrapper, ktClassOrObject, isInterface, forcePublic, (p, f) -> builder.addField(f.build()), (e, n) -> builder
