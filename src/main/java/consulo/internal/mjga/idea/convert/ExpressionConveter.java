@@ -421,7 +421,7 @@ public class ExpressionConveter extends KtVisitorVoid
 			return;
 		}
 
-		GeneratedElement init = initializer == null ? null : convertNonnull(initializer);
+		GeneratedElement initializerGen = initializer == null ? null : convertNonnull(initializer);
 
 		if(declarationDescriptor instanceof LocalVariableDescriptor)
 		{
@@ -429,7 +429,16 @@ public class ExpressionConveter extends KtVisitorVoid
 
 			TypeName typeName = TypeConverter.convertKotlinType(type);
 
-			myGeneratedElement = new LocalVariableStatement(typeName, property.getName(), init);
+			if(initializerGen instanceof Statement)
+			{
+				LocalVariableStatement localVarDecl = new LocalVariableStatement(typeName, property.getName(), null);
+
+				myGeneratedElement = new BlockStatement(List.of(localVarDecl, initializerGen));
+			}
+			else
+			{
+				myGeneratedElement = new LocalVariableStatement(typeName, property.getName(), initializerGen);
+			}
 		}
 	}
 
@@ -812,7 +821,23 @@ public class ExpressionConveter extends KtVisitorVoid
 	public void visitReturnExpression(KtReturnExpression expression)
 	{
 		KtExpression returnedExpression = expression.getReturnedExpression();
-		myGeneratedElement = returnedExpression == null ? new ReturnStatement(null) : new ReturnStatement(convertNonnull(returnedExpression));
+		if(returnedExpression == null)
+		{
+			myGeneratedElement = new ReturnStatement(null);
+		}
+		else
+		{
+			@NotNull GeneratedElement innerGen = convertNonnull(returnedExpression);
+			if(innerGen instanceof Expression)
+			{
+				myGeneratedElement = new ReturnStatement(innerGen);
+			}
+			else
+			{
+				// FIXME [VISTALL] this must be control by each expression
+				myGeneratedElement = innerGen;
+			}
+		}
 	}
 
 	@Override
@@ -825,7 +850,11 @@ public class ExpressionConveter extends KtVisitorVoid
 	@Override
 	public void visitWhenExpression(KtWhenExpression expression)
 	{
-		GeneratedElement subjectExpression = convertNonnull(expression.getSubjectExpression());
+		KtExpression subject = expression.getSubjectExpression();
+
+		GeneratedElement subjectExpression = subject == null ? null : convertNonnull(subject);
+
+		ExpressionToStatementMapper mapper = ExpressionToStatementMapper.find(expression);
 
 		List<KtWhenEntry> entries = expression.getEntries();
 
@@ -843,11 +872,19 @@ public class ExpressionConveter extends KtVisitorVoid
 			{
 				if(ktWhenCondition instanceof KtWhenConditionWithExpression)
 				{
-					GeneratedElement inner = convertNonnull(((KtWhenConditionWithExpression) ktWhenCondition).getExpression());
+					KtExpression innerExpr = ((KtWhenConditionWithExpression) ktWhenCondition).getExpression();
+					GeneratedElement inner = convertNonnull(innerExpr);
 
-					MethodCallExpression equalsCall = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(subjectExpression, inner));
+					if(subjectExpression != null)
+					{
+						MethodCallExpression equalsCall = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(subjectExpression, inner));
 
-					ifParts.add(Couple.of(equalsCall, whenExpr));
+						ifParts.add(Couple.of(equalsCall, whenExpr));
+					}
+					else
+					{
+						ifParts.add(Couple.of(inner, whenExpr));
+					}
 				}
 				else
 				{
@@ -867,9 +904,9 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		for(Couple<GeneratedElement> ifPart : reverse)
 		{
-			GeneratedElement elsePart = prevStatement == null ? elseItem : prevStatement;
+			GeneratedElement elsePart = prevStatement == null ? mapper.map(elseItem) : prevStatement;
 
-			IfStatement ifStatement = new IfStatement(ifPart.getFirst(), ifPart.getSecond(), elsePart);
+			IfStatement ifStatement = new IfStatement(ifPart.getFirst(), mapper.map(ifPart.getSecond()), elsePart);
 
 			prevStatement = ifStatement;
 		}
