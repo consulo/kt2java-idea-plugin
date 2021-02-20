@@ -329,6 +329,13 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		GeneratedElement result = new QualifiedExpression(receiverGenerate, selectorGenerate);
 
+		// if qualified expression is new expression - not interest in it, due selector will generate correct qualifier
+		if(call != null && call.getCandidateDescriptor() instanceof ConstructorDescriptor)
+		{
+			myGeneratedElement = selectorGenerate;
+			return;
+		}
+
 		String bitToken = null;
 		if(call != null)
 		{
