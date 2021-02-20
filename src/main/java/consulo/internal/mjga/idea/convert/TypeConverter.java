@@ -1,14 +1,8 @@
 package consulo.internal.mjga.idea.convert;
 
-import com.intellij.psi.PsiArrayType;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiClassType;
-import com.intellij.psi.PsiType;
+import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.squareup.javapoet.ArrayTypeName;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.type.StdTypeRemapper;
 import consulo.internal.mjga.idea.convert.type.TypeRemapper;
 import org.jetbrains.annotations.NotNull;
@@ -254,6 +248,23 @@ public class TypeConverter
 			TypeName typeName = convertJavaPsiType(componentType);
 
 			return ArrayTypeName.of(typeName);
+		}
+		else if(psiType instanceof PsiWildcardType)
+		{
+			boolean isExtends = ((PsiWildcardType) psiType).isExtends();
+			boolean isSuper = ((PsiWildcardType) psiType).isSuper();
+			PsiType bound = ((PsiWildcardType) psiType).getBound();
+
+			@NotNull TypeName convertedBound = bound != null ? convertJavaPsiType(bound) : TypeName.OBJECT;
+
+			if(isSuper)
+			{
+				return WildcardTypeName.supertypeOf(convertedBound);
+			}
+			else if(isExtends)
+			{
+				return WildcardTypeName.subtypeOf(convertedBound);
+			}
 		}
 		return ClassName.get("", "unknown" + psiType.getClass().getSimpleName());
 	}
