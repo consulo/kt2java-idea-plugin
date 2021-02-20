@@ -886,6 +886,24 @@ public class ExpressionConveter extends KtVisitorVoid
 						ifParts.add(Couple.of(inner, whenExpr));
 					}
 				}
+				else if(ktWhenCondition instanceof KtWhenConditionIsPattern)
+				{
+					boolean isNot = ((KtWhenConditionIsPattern) ktWhenCondition).isNegated();
+
+					BindingContext context = ResolutionUtils.analyze(((KtWhenConditionIsPattern) ktWhenCondition).getTypeReference());
+
+					KotlinType type = context.get(BindingContext.TYPE, ((KtWhenConditionIsPattern) ktWhenCondition).getTypeReference());
+
+					assert subjectExpression != null;
+
+					GeneratedElement target = new InstanceOfExpression(subjectExpression, TypeConverter.convertKotlinType(type));
+					if(isNot)
+					{
+						target = new PrefixExpression("!", new ParExpression(target));
+					}
+					
+					ifParts.add(Couple.of(target, whenExpr));
+				}
 				else
 				{
 					ifParts.add(Couple.of(convertNonnull(ktWhenCondition), whenExpr));

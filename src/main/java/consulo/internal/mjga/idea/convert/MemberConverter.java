@@ -22,6 +22,7 @@ import consulo.internal.mjga.idea.convert.expression.SuperExpression;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.statement.ExpressionStatement;
 import consulo.internal.mjga.idea.convert.statement.ReturnStatement;
+import consulo.internal.mjga.idea.convert.statement.Statement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jps.model.java.JavaSourceRootType;
@@ -615,7 +616,7 @@ public class MemberConverter
 
 		GeneratedElement inner;
 		GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body, context);
-		if(body instanceof KtBlockExpression)
+		if(generatedElement instanceof Statement)
 		{
 			inner = generatedElement;
 		}

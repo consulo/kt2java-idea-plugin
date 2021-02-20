@@ -6,6 +6,7 @@ import consulo.internal.mjga.idea.convert.expression.BinaryExpression;
 import consulo.internal.mjga.idea.convert.expression.ReferenceExpression;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.psi.KtExpression;
+import org.jetbrains.kotlin.psi.KtFunction;
 import org.jetbrains.kotlin.psi.KtProperty;
 import org.jetbrains.kotlin.psi.KtReturnExpression;
 
@@ -52,7 +53,7 @@ public class ExpressionToStatementMapper
 	{
 		PsiElement parent = ktExpression.getParent();
 
-		if(parent instanceof KtReturnExpression)
+		if(parent instanceof KtReturnExpression || parent instanceof KtFunction)
 		{
 			return RETURN;
 		}
