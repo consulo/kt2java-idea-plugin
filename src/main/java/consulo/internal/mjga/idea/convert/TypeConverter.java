@@ -39,6 +39,7 @@ public class TypeConverter
 
 	static
 	{
+		ourTypeRemappers.add(new StdTypeRemapper("kotlin", "Any", TypeName.OBJECT, TypeName.get(Object.class)));
 		ourTypeRemappers.add(new StdTypeRemapper("kotlin", "Char", TypeName.CHAR, TypeName.get(Character.class)));
 		ourTypeRemappers.add(new StdTypeRemapper("kotlin", "Byte", TypeName.BYTE, TypeName.get(Byte.class)));
 		ourTypeRemappers.add(new StdTypeRemapper("kotlin", "Short", TypeName.SHORT, TypeName.get(Short.class)));
