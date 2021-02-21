@@ -394,12 +394,22 @@ public class MemberConverter
 			if(!isConstructor)
 			{
 				methodBuilder.returns(TypeConverter.convertJavaPsiType(methodOrConstructor.getReturnType()));
+
+				if(methodOrConstructor.hasAnnotation(NotNull.class.getName()))
+				{
+					methodBuilder.addAnnotation(NotNull.class);
+				}
 			}
 
 			PsiParameter[] parameters = methodOrConstructor.getParameterList().getParameters();
 			for(PsiParameter parameter : parameters)
 			{
-				methodBuilder.addParameter(TypeConverter.convertJavaPsiType(parameter.getType()), safeName(parameter.getName()));
+				ParameterSpec.Builder paramSpec = ParameterSpec.builder(TypeConverter.convertJavaPsiType(parameter.getType()), safeName(parameter.getName()));
+				if(parameter.hasAnnotation(NotNull.class.getName()))
+				{
+					paramSpec.addAnnotation(NotNull.class);
+				}
+				methodBuilder.addParameter(paramSpec.build());
 			}
 
 			JvmReferenceType[] throwsTypes = methodOrConstructor.getThrowsTypes();
