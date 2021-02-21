@@ -57,7 +57,7 @@ public class TypeConverter
 	}
 
 	@NotNull
-	public static TypeName convertKotlinType(KotlinType kotlinType)
+	public static TypeName convertKotlinType(@NotNull KotlinType kotlinType)
 	{
 		TypeConstructor constructor = kotlinType.getConstructor();
 

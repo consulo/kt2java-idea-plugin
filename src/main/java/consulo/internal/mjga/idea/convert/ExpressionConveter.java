@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedValueArgument;
+import org.jetbrains.kotlin.resolve.calls.smartcasts.ExplicitSmartCasts;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.kotlin.resolve.sam.SamConstructorDescriptor;
@@ -99,6 +100,18 @@ public class ExpressionConveter extends KtVisitorVoid
 			myGeneratedElement = new ReferenceExpression(referencedName);
 
 			BindingContext context = ResolutionUtils.analyze(expression);
+
+			ExplicitSmartCasts smartCasts = context.get(BindingContext.SMARTCAST, expression);
+			if(smartCasts != null)
+			{
+				KotlinType castType = smartCasts.type(null);
+				if(castType != null)
+				{
+					TypeName type = TypeConverter.convertKotlinType(castType);
+
+					myGeneratedElement = new CastExpression(type, myGeneratedElement);
+				}
+			}
 
 			DeclarationDescriptor receiverResult = context.get(BindingContext.REFERENCE_TARGET, expression);
 			if(receiverResult == null)
@@ -1007,5 +1020,15 @@ public class ExpressionConveter extends KtVisitorVoid
 	public void visitContinueExpression(KtContinueExpression expression)
 	{
 		myGeneratedElement = new ContinueStatement();
+	}
+
+	@Override
+	public void visitLambdaExpression(KtLambdaExpression lambdaExpression)
+	{
+		List<KtParameter> valueParameters = lambdaExpression.getValueParameters();
+
+		BindingContext context = ResolutionUtils.analyze(lambdaExpression);
+
+		super.visitLambdaExpression(lambdaExpression);
 	}
 }
