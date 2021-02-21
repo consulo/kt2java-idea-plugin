@@ -436,6 +436,23 @@ public class ExpressionConveter extends KtVisitorVoid
 
 			TypeName typeName = TypeConverter.convertKotlinType(type);
 
+			//  hack for fast return
+			if(initializer instanceof KtBinaryExpression && ((KtBinaryExpression) initializer).getOperationReference().getReferencedNameElementType() == KtTokens.ELVIS)
+			{
+				KtExpression right = ((KtBinaryExpression) initializer).getRight();
+
+				if(right instanceof KtReturnExpression)
+				{
+					LocalVariableStatement localVarDecl = new LocalVariableStatement(typeName, property.getName(), convertNonnull(((KtBinaryExpression) initializer).getLeft()));
+
+					IfStatement ifCheck = new IfStatement(new BinaryExpression(new ReferenceExpression(property.getName()), ConstantExpression.NULL, "=="), convertNonnull(right), null);
+
+					myGeneratedElement = new BlockStatement(List.of(localVarDecl, ifCheck));
+					
+					return;
+				}
+			}
+
 			if(initializerGen instanceof Statement)
 			{
 				LocalVariableStatement localVarDecl = new LocalVariableStatement(typeName, property.getName(), null);
@@ -668,9 +685,10 @@ public class ExpressionConveter extends KtVisitorVoid
 	public void visitBinaryExpression(KtBinaryExpression expression)
 	{
 		KtExpression leftExpr = expression.getLeft();
+		KtExpression rightExpr = expression.getRight();
 
 		GeneratedElement leftGen = convertNonnull(leftExpr);
-		GeneratedElement rightGen = convertNonnull(expression.getRight());
+		GeneratedElement rightGen = convertNonnull(rightExpr);
 
 		IElementType operationToken = expression.getOperationToken();
 		if(operationToken == KtTokens.EQEQ)
@@ -908,7 +926,7 @@ public class ExpressionConveter extends KtVisitorVoid
 					{
 						target = new PrefixExpression("!", new ParExpression(target));
 					}
-					
+
 					ifParts.add(Couple.of(target, whenExpr));
 				}
 				else

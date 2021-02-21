@@ -9,6 +9,8 @@ import consulo.internal.mjga.idea.convert.GeneratedElement;
  */
 public class ConstantExpression extends Expression
 {
+	public static final ConstantExpression NULL = new ConstantExpression("null");
+
 	public static boolean isNull(GeneratedElement e)
 	{
 		return e instanceof ConstantExpression && ((ConstantExpression) e).isNull();

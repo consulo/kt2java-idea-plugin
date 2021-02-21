@@ -32,14 +32,14 @@ public class IfStatement extends Statement
 
 		builder.beginControlFlow("if ($L)", myCondition.generate());
 
-		builder.add(myTrueBlock.generate());
+		builder.add(myTrueBlock.wantSemicolon(true).generate(true));
 
 		builder.endControlFlow();
 
 		if(myFalseBlock != null)
 		{
 			builder.beginControlFlow("else");
-			builder.add(myFalseBlock.generate());
+			builder.add(myFalseBlock.wantSemicolon(true).generate(true));
 			builder.endControlFlow();
 		}
 
