@@ -1,9 +1,11 @@
 package consulo.internal.mjga.idea.convert;
 
 import com.intellij.openapi.util.Couple;
+import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiRecursiveElementWalkingVisitor;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.containers.ContainerUtil;
 import com.squareup.javapoet.ArrayTypeName;
@@ -461,7 +463,7 @@ public class ExpressionConveter extends KtVisitorVoid
 					IfStatement ifCheck = new IfStatement(new BinaryExpression(new ReferenceExpression(property.getName()), ConstantExpression.NULL, "=="), convertNonnull(right), null);
 
 					myGeneratedElement = new BlockStatement(List.of(localVarDecl, ifCheck));
-					
+
 					return;
 				}
 			}
@@ -581,7 +583,7 @@ public class ExpressionConveter extends KtVisitorVoid
 
 			KtBlockExpression bodyExpression = lambdaExpression.getBodyExpression();
 
-			myGeneratedElement = new LambdaExpression(Collections.emptyList(), convertNonnull(bodyExpression));
+			myGeneratedElement = new LambdaExpression(List.of(), convertNonnull(bodyExpression));
 		}
 		else if(resultingDescriptor instanceof ClassConstructorDescriptor || resultingDescriptor instanceof TypeAliasConstructorDescriptor)
 		{
@@ -1029,6 +1031,53 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		BindingContext context = ResolutionUtils.analyze(lambdaExpression);
 
-		super.visitLambdaExpression(lambdaExpression);
+		List<Pair<TypeName, String>> params = new ArrayList<>();
+		for(KtParameter valueParameter : valueParameters)
+		{
+			params.add(Pair.create(null, valueParameter.getName()));
+		}
+
+		KtBlockExpression bodyExpression = lambdaExpression.getBodyExpression();
+
+		if(valueParameters.isEmpty())
+		{
+			ValueParameterDescriptor[] foundIt = new ValueParameterDescriptor[1];
+			bodyExpression.accept(new PsiRecursiveElementWalkingVisitor()
+			{
+				@Override
+				public void visitElement(PsiElement element)
+				{
+					if(element instanceof KtSimpleNameExpression)
+					{
+						DeclarationDescriptor declarationDescriptor = (context.get(BindingContext.REFERENCE_TARGET, (KtSimpleNameExpression) element));
+						if(declarationDescriptor instanceof ValueParameterDescriptor)
+						{
+							if(context.get(BindingContext.AUTO_CREATED_IT, (ValueParameterDescriptor) declarationDescriptor) == true)
+							{
+								foundIt[0] = (ValueParameterDescriptor) declarationDescriptor;
+								stopWalking();
+							}
+						}
+					}
+					else if(element instanceof KtLambdaExpression)
+					{
+						stopWalking();
+					}
+					else
+					{
+						super.visitElement(element);
+					}
+				}
+			});
+
+			if(foundIt[0] != null)
+			{
+				params.add(Pair.create(null, foundIt[0].getName().toString()));
+			}
+		}
+
+		@NotNull GeneratedElement body = convertNonnull(bodyExpression);
+
+		myGeneratedElement = new LambdaExpression(params, body);
 	}
 }

@@ -1,6 +1,8 @@
 package consulo.internal.mjga.idea.convert.expression;
 
+import com.intellij.openapi.util.Pair;
 import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
 import consulo.internal.mjga.idea.convert.statement.BlockStatement;
 
@@ -12,11 +14,11 @@ import java.util.List;
  */
 public class LambdaExpression extends Expression
 {
-	private List<CodeBlock> myParameters;
+	private List<Pair<TypeName, String>> myParameters;
 
 	private GeneratedElement myBlock;
 
-	public LambdaExpression(List<CodeBlock> parameters, GeneratedElement block)
+	public LambdaExpression(List<Pair<TypeName, String>> parameters, GeneratedElement block)
 	{
 		myParameters = parameters;
 		myBlock = block;
@@ -27,7 +29,30 @@ public class LambdaExpression extends Expression
 	{
 		CodeBlock.Builder builder = CodeBlock.builder();
 
-		builder.beginControlFlow("($L) ->", CodeBlock.join(myParameters, ", "));
+		StringBuilder paramsBuilder = new StringBuilder();
+		paramsBuilder.append("(");
+		for(int p = 0; p < myParameters.size(); p++)
+		{
+			if(p != 0)
+			{
+				paramsBuilder.append(", ");
+			}
+
+			Pair<TypeName, String
+					> pair = myParameters.get(p);
+
+			if(pair.getFirst() == null)
+			{
+				paramsBuilder.append(CodeBlock.of("$L", pair.getSecond()));
+			}
+			else
+			{
+				paramsBuilder.append(CodeBlock.of("$T $L", pair.getFirst(), pair.getSecond()));
+			}
+		}
+		paramsBuilder.append(") ->");
+
+		builder.beginControlFlow(paramsBuilder.toString());
 		if(myBlock instanceof BlockStatement)
 		{
 			for(GeneratedElement element : ((BlockStatement) myBlock).getGeneratedElements())
