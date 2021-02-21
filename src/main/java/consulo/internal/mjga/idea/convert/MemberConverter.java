@@ -48,6 +48,11 @@ import java.util.stream.Collectors;
  */
 public class MemberConverter
 {
+	private static final Class[] ourNullableAnnotations = {
+			NotNull.class,
+			Nullable.class
+	};
+
 	public static void run(ConvertContext context)
 	{
 		Collection<KtFile> files = context.getFiles();
@@ -395,9 +400,12 @@ public class MemberConverter
 			{
 				methodBuilder.returns(TypeConverter.convertJavaPsiType(methodOrConstructor.getReturnType()));
 
-				if(methodOrConstructor.hasAnnotation(NotNull.class.getName()))
+				for(Class annotation : ourNullableAnnotations)
 				{
-					methodBuilder.addAnnotation(NotNull.class);
+					if(methodOrConstructor.hasAnnotation(annotation.getName()))
+					{
+						methodBuilder.addAnnotation(annotation);
+					}
 				}
 			}
 
@@ -405,9 +413,12 @@ public class MemberConverter
 			for(PsiParameter parameter : parameters)
 			{
 				ParameterSpec.Builder paramSpec = ParameterSpec.builder(TypeConverter.convertJavaPsiType(parameter.getType()), safeName(parameter.getName()));
-				if(parameter.hasAnnotation(NotNull.class.getName()))
+				for(Class annotation : ourNullableAnnotations)
 				{
-					paramSpec.addAnnotation(NotNull.class);
+					if(parameter.hasAnnotation(annotation.getName()))
+					{
+						paramSpec.addAnnotation(annotation);
+					}
 				}
 				methodBuilder.addParameter(paramSpec.build());
 			}
