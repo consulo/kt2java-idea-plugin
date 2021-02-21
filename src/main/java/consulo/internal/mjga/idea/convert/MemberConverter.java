@@ -689,7 +689,7 @@ public class MemberConverter
 			modifiers.add(Modifier.PUBLIC);
 		}
 
-		if(owner.hasModifier(JvmModifier.FINAL))
+		if(owner.hasModifier(JvmModifier.FINAL) && !(owner.hasModifier(JvmModifier.STATIC) || owner.hasModifier(JvmModifier.PRIVATE)))
 		{
 			modifiers.add(Modifier.FINAL);
 		}

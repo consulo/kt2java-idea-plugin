@@ -26,6 +26,10 @@ tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
 
 repositories {
     mavenCentral()
+
+    maven {
+        url "https://maven.consulo.io/repository/snapshots"
+    }
 }
 
 runIde {
@@ -47,5 +51,5 @@ intellij {
 }
 
 dependencies {
-    compile group: 'com.squareup', name: 'javapoet', version: '1.13.0'
+    compile group: 'consulo.internal.com.squareup', name: 'javapoet', version: '1.14.0-SNAPSHOT'
 }
