@@ -34,7 +34,7 @@ repositories {
 
 runIde {
     minHeapSize = "512m";
-    maxHeapSize = "1G";
+    maxHeapSize = "3G";
 
     //jvmArgs '-Dsun.java2d.uiScale.enabled=true'
     //jvmArgs "-agentpath:C:/yjpagent.dll"
