@@ -49,7 +49,7 @@ intellij {
     }
 
     instrumentCode.set(false)
-    
+
     plugins.addAll("java", "Kotlin")
 }
 

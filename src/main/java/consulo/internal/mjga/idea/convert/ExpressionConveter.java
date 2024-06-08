@@ -120,7 +120,7 @@ public class ExpressionConveter extends KtVisitorVoid
 				return;
 			}
 
-			if(receiverResult instanceof ClassDescriptor && ((ClassDescriptor) receiverResult).getKind() == ClassKind.ENUM_ENTRY)
+			if(receiverResult instanceof ClassDescriptor classDescriptor && classDescriptor.getKind() == ClassKind.ENUM_ENTRY)
 			{
 				// don't need add qualifier for enum entry, since expression must be anyway qualified
 			}
@@ -129,7 +129,14 @@ public class ExpressionConveter extends KtVisitorVoid
 				@Nullable TypeName typeName = TypeConverter.convertKotlinDescriptor(receiverResult, false);
 				if(typeName != null)
 				{
-					myGeneratedElement = new TypeReferenceExpression(typeName);
+					if (receiverResult instanceof ClassDescriptor classDescriptor && classDescriptor.getKind() == ClassKind.OBJECT)
+					{
+						myGeneratedElement = new StaticTypeQualifiedExpression(typeName, "INSTANCE");
+					}
+					else
+					{
+						myGeneratedElement = new TypeReferenceExpression(typeName);
+					}
 				}
 			}
 
