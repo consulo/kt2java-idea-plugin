@@ -477,42 +477,39 @@ public class MemberConverter
 			{
 				KtPrimaryConstructor primaryConstructor = ktClassOrObject.getPrimaryConstructor();
 
-				if(primaryConstructor != null)
+				List<KtSuperTypeListEntry> superTypeListEntries = ktClassOrObject.getSuperTypeListEntries();
+				for(KtSuperTypeListEntry superTypeListEntry : superTypeListEntries)
 				{
-					List<KtSuperTypeListEntry> superTypeListEntries = ktClassOrObject.getSuperTypeListEntries();
-					for(KtSuperTypeListEntry superTypeListEntry : superTypeListEntries)
+					if(superTypeListEntry instanceof KtSuperTypeCallEntry)
 					{
-						if(superTypeListEntry instanceof KtSuperTypeCallEntry)
+						//KtConstructorCalleeExpression calleeExpression = ((KtSuperTypeCallEntry) superTypeListEntry).getCalleeExpression();
+
+						List<? extends ValueArgument> valueArguments = ((KtSuperTypeCallEntry) superTypeListEntry).getValueArguments();
+
+						List<GeneratedElement> args = new ArrayList<>();
+						for(ValueArgument argument : valueArguments)
 						{
-							//KtConstructorCalleeExpression calleeExpression = ((KtSuperTypeCallEntry) superTypeListEntry).getCalleeExpression();
+							args.add(ExpressionConveter.convertNonnull(argument.getArgumentExpression(), context));
+						}
 
-							List<? extends ValueArgument> valueArguments = ((KtSuperTypeCallEntry) superTypeListEntry).getValueArguments();
+						MethodCallExpression expression = new MethodCallExpression(new SuperExpression(), args);
+						methodBuilder.addCode(new ExpressionStatement(expression).wantSemicolon(true).generate(true));
+					}
+				}
 
-							List<GeneratedElement> args = new ArrayList<>();
-							for(ValueArgument argument : valueArguments)
-							{
-								args.add(ExpressionConveter.convertNonnull(argument.getArgumentExpression(), context));
-							}
+				for(PsiParameter parameter : parameters)
+				{
+					if(parameter instanceof KtUltraLightParameterForSource)
+					{
+						KtParameter sourceElement = ((KtUltraLightParameterForSource) parameter).getKotlinOrigin();
 
-							MethodCallExpression expression = new MethodCallExpression(new SuperExpression(), args);
-							methodBuilder.addCode(new ExpressionStatement(expression).wantSemicolon(true).generate(true));
+						// if var or val not set - it just reference parameter, without backend field
+						if(sourceElement.getValOrVarKeyword() == null)
+						{
+							continue;
 						}
 					}
-
-					for(PsiParameter parameter : parameters)
-					{
-						if(parameter instanceof KtUltraLightParameterForSource)
-						{
-							KtParameter sourceElement = ((KtUltraLightParameterForSource) parameter).getKotlinOrigin();
-
-							// if var or val not set - it just reference parameter, without backend field
-							if(sourceElement.getValOrVarKeyword() == null)
-							{
-								continue;
-							}
-						}
-						methodBuilder.addCode(CodeBlock.of("this.$L = $L;\n", parameter.getName(), parameter.getName()));
-					}
+					methodBuilder.addCode(CodeBlock.of("this.$L = $L;\n", parameter.getName(), parameter.getName()));
 				}
 
 				for(GeneratedElement element : constructorInit)
