@@ -4,6 +4,7 @@
 	<version>1.0</version>
 	<vendor>consulo.io</vendor>
 	<depends>org.jetbrains.kotlin</depends>
+	<idea-version>2023.2.2</idea-version>
 	<actions>
 		<action id="MJGA.ConvertToJavaAction" class="consulo.internal.mjga.idea.actions.ConvertToJavaAction">
 			<add-to-group anchor="last" group-id="ProjectViewPopupMenu"/>

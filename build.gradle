@@ -5,19 +5,19 @@ buildscript {
 }
 
 plugins {
-    id "org.jetbrains.intellij" version "0.4.26"
+    id "org.jetbrains.intellij" version "1.17.3"
 }
 
 apply plugin: 'java'
 apply plugin: 'idea'
 
-sourceCompatibility = "11"
-targetCompatibility = "11"
+sourceCompatibility = "17"
+targetCompatibility = "17"
 
 idea {
     project {
-        jdkName = "11"
-        languageLevel = "11"
+        jdkName = "17"
+        languageLevel = "17"
     }
 }
 
@@ -27,9 +27,6 @@ tasks.withType(JavaCompile) { options.encoding = 'UTF-8' }
 repositories {
     mavenCentral()
 
-    maven {
-        url "https://maven.consulo.io/repository/snapshots"
-    }
 }
 
 runIde {
@@ -42,14 +39,20 @@ runIde {
 }
 
 intellij {
-    type 'IC'
-    version 'LATEST-EAP-SNAPSHOT'
-    downloadSources true
-    updateSinceUntilBuild = false
+    type.set("IC")
+    version.set("2023.2.2")
+    downloadSources.set(false)
+    updateSinceUntilBuild.set(false)
 
-    plugins = ['org.jetbrains.kotlin', 'com.intellij.java']
+    verifyPluginConfiguration {
+        enabled = false
+    }
+
+    instrumentCode.set(false)
+    
+    plugins.addAll("java", "Kotlin")
 }
 
 dependencies {
-    compile group: 'consulo.internal.com.squareup', name: 'javapoet', version: '1.14.0-SNAPSHOT'
+    implementation 'com.squareup:javapoet:1.13.0'
 }

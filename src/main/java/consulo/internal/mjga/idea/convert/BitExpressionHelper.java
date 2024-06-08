@@ -1,14 +1,14 @@
 package consulo.internal.mjga.idea.convert;
 
 import com.intellij.util.containers.ContainerUtil;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.CallableDescriptor;
 import org.jetbrains.kotlin.descriptors.ClassDescriptor;
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
 import org.jetbrains.kotlin.name.FqNameUnsafe;
 import org.jetbrains.kotlin.resolve.DescriptorUtils;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -36,7 +36,7 @@ public class BitExpressionHelper
 	private static final Set<String> ourPrimitives = ContainerUtil.newHashSet("kotlin.Int");
 
 	@Nullable
-	public static String remapToBitExpression(@Nonnull CallableDescriptor callableDescriptor)
+	public static String remapToBitExpression(@NotNull CallableDescriptor callableDescriptor)
 	{
 		String name = callableDescriptor.getName().asString();
 

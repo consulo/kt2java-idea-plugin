@@ -67,20 +67,17 @@ public class MemberConverter
 	{
 		KotlinAsJavaSupport kotlinAsJavaSupport = KotlinAsJavaSupport.getInstance(file.getProject());
 
-		Collection<PsiClass> facadeClassesInPackage = kotlinAsJavaSupport.getFacadeClassesInPackage(file.getPackageFqName(), file.getResolveScope());
+		Collection<KtLightClassForFacade> facadeClassesInPackage = kotlinAsJavaSupport.getFacadeClassesInPackage(file.getPackageFqName(), file.getResolveScope());
 
 		PsiClass fileClass = null;
 
-		for(PsiClass psiClass : facadeClassesInPackage)
+		for(KtLightClassForFacade psiClass : facadeClassesInPackage)
 		{
-			if(psiClass instanceof KtLightClassForFacade)
+			Collection<KtFile> files = psiClass.getFiles();
+			if(files.contains(file))
 			{
-				Collection<KtFile> files = ((KtLightClassForFacade) psiClass).getFiles();
-				if(files.contains(file))
-				{
-					fileClass = psiClass;
-					break;
-				}
+				fileClass = psiClass;
+				break;
 			}
 		}
 
@@ -476,7 +473,7 @@ public class MemberConverter
 					}
 				}
 			}
-			else if(isConstructor && ktClassOrObject instanceof KtClass && !(((KtClass) ktClassOrObject).isData()))
+			else if(isConstructor && ktClassOrObject instanceof KtClass && !(ktClassOrObject.isData()))
 			{
 				KtPrimaryConstructor primaryConstructor = ktClassOrObject.getPrimaryConstructor();
 
@@ -523,7 +520,7 @@ public class MemberConverter
 					methodBuilder.addCode(element.generate(true));
 				}
 			}
-			else if(ktClassOrObject instanceof KtClass && ((KtClass) ktClassOrObject).isData())
+			else if(ktClassOrObject instanceof KtClass && ktClassOrObject.isData())
 			{
 				List<KtParameter> primaryConstructorParameters = ktClassOrObject.getPrimaryConstructorParameters();
 
@@ -595,7 +592,7 @@ public class MemberConverter
 				String component = "component";
 				if(methodName.startsWith(component))
 				{
-					int index = Integer.parseInt(methodName.substring(component.length(), methodName.length()));
+					int index = Integer.parseInt(methodName.substring(component.length()));
 					KtParameter parameter = primaryConstructorParameters.get(index - 1);
 					methodBuilder.addCode(CodeBlock.of("return $L;", parameter.getName()));
 				}

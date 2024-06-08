@@ -2,9 +2,9 @@ package consulo.internal.mjga.idea.convert.statement;
 
 import com.squareup.javapoet.CodeBlock;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * @author VISTALL
@@ -18,7 +18,7 @@ public class IfStatement extends Statement
 
 	private GeneratedElement myFalseBlock;
 
-	public IfStatement(@Nonnull GeneratedElement condition, @Nonnull GeneratedElement trueBlock, @Nullable GeneratedElement falseBlock)
+	public IfStatement(@NotNull GeneratedElement condition, @NotNull GeneratedElement trueBlock, @Nullable GeneratedElement falseBlock)
 	{
 		myCondition = condition;
 		myTrueBlock = trueBlock;

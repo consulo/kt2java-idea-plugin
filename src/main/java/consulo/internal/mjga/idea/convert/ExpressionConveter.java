@@ -38,7 +38,6 @@ import org.jetbrains.kotlin.resolve.source.PsiSourceFile;
 import org.jetbrains.kotlin.synthetic.SyntheticJavaPropertyDescriptor;
 import org.jetbrains.kotlin.types.KotlinType;
 
-import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -254,7 +253,7 @@ public class ExpressionConveter extends KtVisitorVoid
 	}
 
 	@Override
-	public void visitArrayAccessExpression(@Nonnull KtArrayAccessExpression expression)
+	public void visitArrayAccessExpression(@NotNull KtArrayAccessExpression expression)
 	{
 		GeneratedElement genCall = convertNonnull(expression.getArrayExpression());
 

@@ -2,8 +2,7 @@ package consulo.internal.mjga.idea.convert.statement;
 
 import com.squareup.javapoet.CodeBlock;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
-
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * @author VISTALL
