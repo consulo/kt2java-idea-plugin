@@ -513,7 +513,7 @@ public class MemberConverter
 						}
 					}
 				}
-				else if (isConstructor && ktClassOrObject instanceof KtClass && !(ktClassOrObject.isData()))
+				else if (isConstructor && ktClassOrObject instanceof KtClass && !ktClassOrObject.isData())
 				{
 					KtPrimaryConstructor primaryConstructor = ktClassOrObject.getPrimaryConstructor();
 

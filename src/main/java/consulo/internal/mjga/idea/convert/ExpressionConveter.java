@@ -8,10 +8,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiRecursiveElementWalkingVisitor;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.containers.ContainerUtil;
-import com.squareup.javapoet.ArrayTypeName;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.TypeName;
-import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.expression.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.library.FunctionRemapper;
@@ -30,6 +27,7 @@ import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.psi.*;
+import org.jetbrains.kotlin.psi.psiUtil.KtPsiUtilKt;
 import org.jetbrains.kotlin.resolve.BindingContext;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedValueArgument;
@@ -420,8 +418,28 @@ public class ExpressionConveter extends KtVisitorVoid
 	{
 		TypeName typeName = calculateAnonymousType(expression);
 
-		TypeSpec.Builder anonymSpec = TypeSpec.anonymousClassBuilder("");
 		KtObjectDeclaration objectDeclaration = expression.getObjectDeclaration();
+
+		List<KtSuperTypeListEntry> superTypeListEntries = objectDeclaration.getSuperTypeListEntries();
+
+		List<GeneratedElement> args = new ArrayList<>();
+		for (KtSuperTypeListEntry superTypeListEntry : superTypeListEntries)
+		{
+			if (superTypeListEntry instanceof KtSuperTypeCallEntry callEntry)
+			{
+				List<? extends ValueArgument> valueArguments = ((KtSuperTypeCallEntry) superTypeListEntry).getValueArguments();
+
+				for (ValueArgument argument : valueArguments)
+				{
+					args.add(ExpressionConveter.convertNonnull(argument.getArgumentExpression(), myContext));
+				}
+			}
+		}
+
+		String parts = args.stream().map(g -> "$L").collect(Collectors.joining(", "));
+		Object[] partValues = args.stream().map(GeneratedElement::generate).toArray();
+
+		TypeSpec.Builder anonymSpec = TypeSpec.anonymousClassBuilder(CodeBlock.of(parts, partValues));
 
 		KtLightClass lightClass = KotlinAsJavaSupport.getInstance(expression.getProject()).getLightClass(objectDeclaration);
 
@@ -525,21 +543,28 @@ public class ExpressionConveter extends KtVisitorVoid
 	@Override
 	public void visitStringTemplateExpression(KtStringTemplateExpression expression)
 	{
-		List<GeneratedElement> expressions = new ArrayList<>();
-
-		for (KtStringTemplateEntry entry : expression.getEntries())
+		if (KtPsiUtilKt.isPlain(expression))
 		{
-			if (entry instanceof KtStringTemplateEntryWithExpression)
-			{
-				expressions.add(convertNonnull(entry.getExpression()));
-			}
-			else
-			{
-				expressions.add(new ConstantExpression("\"" + entry.getText() + "\""));
-			}
+			myGeneratedElement = new ConstantExpression(expression.getText());
 		}
+		else
+		{
+			List<GeneratedElement> expressions = new ArrayList<>();
 
-		myGeneratedElement = new StringBuilderExpression(expressions);
+			for (KtStringTemplateEntry entry : expression.getEntries())
+			{
+				if (entry instanceof KtStringTemplateEntryWithExpression)
+				{
+					expressions.add(convertNonnull(entry.getExpression()));
+				}
+				else
+				{
+					expressions.add(new ConstantExpression("\"" + StringUtil.escapeLineBreak(entry.getText()) + "\""));
+				}
+			}
+
+			myGeneratedElement = new StringBuilderExpression(expressions);
+		}
 	}
 
 	@Override
