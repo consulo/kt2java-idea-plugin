@@ -76,7 +76,7 @@ public class TypeConverter
 			return typeName;
 		}
 
-		List<TypeName> newArgs = arguments.stream().map(typeProjection -> convertKotlinType(typeProjection.getType())).collect(Collectors.toList());
+		List<TypeName> newArgs = arguments.stream().map(typeProjection -> convertKotlinType(typeProjection.getType())).toList();
 
 		if(typeName.equals(ClassName.get("kotlin", "Array")) && newArgs.size() == 1)
 		{
@@ -170,47 +170,47 @@ public class TypeConverter
 	@NotNull
 	public static TypeName convertJavaPsiType(PsiType psiType)
 	{
-		if(psiType.equals(PsiType.VOID))
+		if(psiType.equals(PsiTypes.voidType()))
 		{
 			return TypeName.VOID;
 		}
 
-		if(psiType.equals(PsiType.LONG))
+		if(psiType.equals(PsiTypes.longType()))
 		{
 			return TypeName.LONG;
 		}
 
-		if(psiType.equals(PsiType.INT))
+		if(psiType.equals(PsiTypes.intType()))
 		{
 			return TypeName.INT;
 		}
 
-		if(psiType.equals(PsiType.SHORT))
+		if(psiType.equals(PsiTypes.shortType()))
 		{
 			return TypeName.SHORT;
 		}
 
-		if(psiType.equals(PsiType.BYTE))
+		if(psiType.equals(PsiTypes.byteType()))
 		{
 			return TypeName.BYTE;
 		}
 
-		if(psiType.equals(PsiType.FLOAT))
+		if(psiType.equals(PsiTypes.floatType()))
 		{
 			return TypeName.FLOAT;
 		}
 
-		if(psiType.equals(PsiType.CHAR))
+		if(psiType.equals(PsiTypes.charType()))
 		{
 			return TypeName.CHAR;
 		}
 
-		if(psiType.equals(PsiType.DOUBLE))
+		if(psiType.equals(PsiTypes.doubleType()))
 		{
 			return TypeName.DOUBLE;
 		}
 
-		if(psiType.equals(PsiType.BOOLEAN))
+		if(psiType.equals(PsiTypes.booleanType()))
 		{
 			return TypeName.BOOLEAN;
 		}
@@ -233,7 +233,7 @@ public class TypeConverter
 					typeName = (ClassName) convertJavaPsiType(rawType);
 				}
 
-				List<TypeName> mapArguments = Arrays.stream(parameters).map(TypeConverter::convertJavaPsiType).collect(Collectors.toList());
+				List<TypeName> mapArguments = Arrays.stream(parameters).map(TypeConverter::convertJavaPsiType).toList();
 				return ParameterizedTypeName.get(typeName, mapArguments.toArray(new TypeName[0]));
 			}
 			else

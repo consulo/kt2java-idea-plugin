@@ -43,7 +43,8 @@ public class ConvertContext
 	@NotNull
 	public KtToJavaClassBinder bind(KtFile file)
 	{
-		return myFileBinder.computeIfAbsent(file, f -> {
+		return myFileBinder.computeIfAbsent(file, f ->
+		{
 			FqName packageFqName = file.getPackageFqName();
 			String className = StringUtil.capitalize(f.getVirtualFile().getNameWithoutExtension()) + "Kt";
 			return new KtToJavaClassBinder(packageFqName.toString(), JavaSourceClassType.CLASS, className, file);
@@ -53,18 +54,19 @@ public class ConvertContext
 	@NotNull
 	public KtToJavaClassBinder bind(KtClassOrObject ktClass)
 	{
-		return myClassBinder.computeIfAbsent(ktClass, f -> {
+		return myClassBinder.computeIfAbsent(ktClass, f ->
+		{
 			KtFile containingKtFile = f.getContainingKtFile();
 			FqName packageFqName = containingKtFile.getPackageFqName();
 			String className = f.getName();
 			JavaSourceClassType classType = JavaSourceClassType.CLASS;
-			if(ktClass instanceof KtClass)
+			if (ktClass instanceof KtClass)
 			{
-				if(((KtClass)f).isInterface())
+				if (((KtClass) f).isInterface())
 				{
 					classType = JavaSourceClassType.INTERFACE;
 				}
-				else if(((KtClass) f).isEnum())
+				else if (((KtClass) f).isEnum())
 				{
 					classType = JavaSourceClassType.ENUM;
 				}
@@ -85,12 +87,12 @@ public class ConvertContext
 
 	public void forEach(Consumer<KtToJavaClassBinder> binder)
 	{
-		for(KtToJavaClassBinder classBinder : myFileBinder.values())
+		for (KtToJavaClassBinder classBinder : myFileBinder.values())
 		{
 			binder.accept(classBinder);
 		}
 
-		for(KtToJavaClassBinder classBinder : myClassBinder.values())
+		for (KtToJavaClassBinder classBinder : myClassBinder.values())
 		{
 			binder.accept(classBinder);
 		}

@@ -11,12 +11,15 @@ import com.intellij.util.containers.ContainerUtil;
 import com.squareup.javapoet.ArrayTypeName;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
 import consulo.internal.mjga.idea.convert.expression.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.library.FunctionRemapper;
 import consulo.internal.mjga.idea.convert.statement.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.kotlin.asJava.KotlinAsJavaSupport;
+import org.jetbrains.kotlin.asJava.classes.KtLightClass;
 import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.kotlin.descriptors.impl.SyntheticFieldDescriptor;
@@ -52,14 +55,15 @@ public class ExpressionConveter extends KtVisitorVoid
 	@NotNull
 	public static GeneratedElement convertNonnull(@Nullable PsiElement element, @NotNull ConvertContext context)
 	{
-		if(element == null)
+		if (element == null)
 		{
 			return new ConstantExpression("\"unsupported\"");
 		}
+		
 		ExpressionConveter conveter = new ExpressionConveter(context);
 		element.accept(conveter);
 		GeneratedElement generatedElement = conveter.myGeneratedElement;
-		if(generatedElement == null)
+		if (generatedElement == null)
 		{
 			generatedElement = new ConstantExpression("\"unsupported '" + element.getText() + "' expression\"");
 		}
@@ -94,7 +98,7 @@ public class ExpressionConveter extends KtVisitorVoid
 	@Override
 	public void visitSimpleNameExpression(KtSimpleNameExpression expression)
 	{
-		if(expression instanceof KtNameReferenceExpression)
+		if (expression instanceof KtNameReferenceExpression)
 		{
 			String referencedName = expression.getReferencedName();
 
@@ -103,10 +107,10 @@ public class ExpressionConveter extends KtVisitorVoid
 			BindingContext context = ResolutionUtils.analyze(expression);
 
 			ExplicitSmartCasts smartCasts = context.get(BindingContext.SMARTCAST, expression);
-			if(smartCasts != null)
+			if (smartCasts != null)
 			{
 				KotlinType castType = smartCasts.type(null);
-				if(castType != null)
+				if (castType != null)
 				{
 					TypeName type = TypeConverter.convertKotlinType(castType);
 
@@ -115,40 +119,37 @@ public class ExpressionConveter extends KtVisitorVoid
 			}
 
 			DeclarationDescriptor receiverResult = context.get(BindingContext.REFERENCE_TARGET, expression);
-			if(receiverResult == null)
+			if (receiverResult == null)
 			{
 				return;
 			}
 
-			if(receiverResult instanceof ClassDescriptor classDescriptor && classDescriptor.getKind() == ClassKind.ENUM_ENTRY)
+			if (receiverResult instanceof ClassDescriptor classDescriptor && classDescriptor.getKind() == ClassKind.ENUM_ENTRY)
 			{
 				// don't need add qualifier for enum entry, since expression must be anyway qualified
-			}
-			else
+			} else
 			{
 				@Nullable TypeName typeName = TypeConverter.convertKotlinDescriptor(receiverResult, false);
-				if(typeName != null)
+				if (typeName != null)
 				{
 					if (receiverResult instanceof ClassDescriptor classDescriptor && classDescriptor.getKind() == ClassKind.OBJECT)
 					{
 						myGeneratedElement = new StaticTypeQualifiedExpression(typeName, "INSTANCE");
-					}
-					else
+					} else
 					{
 						myGeneratedElement = new TypeReferenceExpression(typeName);
 					}
 				}
 			}
 
-			if(receiverResult instanceof SyntheticFieldDescriptor)
+			if (receiverResult instanceof SyntheticFieldDescriptor)
 			{
 				PropertyDescriptor propertyDescriptor = ((SyntheticFieldDescriptor) receiverResult).getPropertyDescriptor();
 
 				myGeneratedElement = new ReferenceExpression("__" + propertyDescriptor.getName());
-			}
-			else if(receiverResult instanceof PropertyDescriptor)
+			} else if (receiverResult instanceof PropertyDescriptor)
 			{
-				if(isClassMember(receiverResult, "kotlin.Array", "size") ||
+				if (isClassMember(receiverResult, "kotlin.Array", "size") ||
 						isClassMember(receiverResult, "kotlin.ByteArray", "size") ||
 						isClassMember(receiverResult, "kotlin.ShortArray", "size") ||
 						isClassMember(receiverResult, "kotlin.LongArray", "size") ||
@@ -157,15 +158,14 @@ public class ExpressionConveter extends KtVisitorVoid
 						isClassMember(receiverResult, "kotlin.IntArray", "size"))
 				{
 					myGeneratedElement = new ReferenceExpression("length");
-				}
-				else
+				} else
 				{
 					PropertyGetterDescriptor getter = ((PropertyDescriptor) receiverResult).getGetter();
-					if(getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != DescriptorVisibilities.PRIVATE && !((PropertyDescriptor) receiverResult).isConst())
+					if (getter != null && ((PropertyDescriptor) receiverResult).getVisibility() != DescriptorVisibilities.PRIVATE && !((PropertyDescriptor) receiverResult).isConst())
 					{
 						String getMethodName = "get" + StringUtil.capitalize(receiverResult.getName().asString());
 
-						if(receiverResult instanceof SyntheticJavaPropertyDescriptor)
+						if (receiverResult instanceof SyntheticJavaPropertyDescriptor)
 						{
 							FunctionDescriptor getMethod = ((SyntheticJavaPropertyDescriptor) receiverResult).getGetMethod();
 
@@ -185,11 +185,11 @@ public class ExpressionConveter extends KtVisitorVoid
 	{
 		CallableMemberDescriptor callableMemberDescriptor = (CallableMemberDescriptor) descriptor;
 
-		if(name.equals(callableMemberDescriptor.getName().asString()))
+		if (name.equals(callableMemberDescriptor.getName().asString()))
 		{
 			DeclarationDescriptor containingDeclaration = callableMemberDescriptor.getContainingDeclaration();
 
-			if(containingDeclaration instanceof ClassDescriptor)
+			if (containingDeclaration instanceof ClassDescriptor)
 			{
 				FqName requireFqName = FqName.fromSegments(StringUtil.split(fqName, "."));
 
@@ -201,13 +201,12 @@ public class ExpressionConveter extends KtVisitorVoid
 
 	private FqName buildFqName(DeclarationDescriptor descriptor)
 	{
-		if(descriptor instanceof ClassDescriptor)
+		if (descriptor instanceof ClassDescriptor)
 		{
 			DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
 
 			return buildFqName(containingDeclaration).child(descriptor.getName());
-		}
-		else if(descriptor instanceof PackageFragmentDescriptor)
+		} else if (descriptor instanceof PackageFragmentDescriptor)
 		{
 			return ((PackageFragmentDescriptor) descriptor).getFqName();
 		}
@@ -217,13 +216,13 @@ public class ExpressionConveter extends KtVisitorVoid
 
 	private GeneratedElement modifyCallIfPackageOwner(CallableDescriptor receiverResult, GeneratedElement element)
 	{
-		if(receiverResult.getContainingDeclaration() instanceof PackageFragmentDescriptor)
+		if (receiverResult.getContainingDeclaration() instanceof PackageFragmentDescriptor)
 		{
 			SourceFile containingFile = receiverResult.getSource().getContainingFile();
 
 			PsiFile file = containingFile instanceof PsiSourceFile ? ((PsiSourceFile) containingFile).getPsiFile() : null;
 
-			if(file instanceof KtFile)
+			if (file instanceof KtFile)
 			{
 				@NotNull KtToJavaClassBinder classBinder = myContext.bind((KtFile) file);
 
@@ -246,11 +245,10 @@ public class ExpressionConveter extends KtVisitorVoid
 		IElementType operationToken = expression.getOperationToken();
 
 		// !test
-		if(operationToken == KtTokens.EXCL)
+		if (operationToken == KtTokens.EXCL)
 		{
 			myGeneratedElement = new PrefixExpression("!", generatedElement);
-		}
-		else
+		} else
 		{
 			String text = expression.getOperationReference().getText();
 
@@ -282,7 +280,7 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		myGeneratedElement = new InstanceOfExpression(generatedElement, TypeConverter.convertKotlinType(type));
 
-		if(isNot)
+		if (isNot)
 		{
 			myGeneratedElement = new PrefixExpression("!", new ParExpression(myGeneratedElement));
 		}
@@ -298,7 +296,7 @@ public class ExpressionConveter extends KtVisitorVoid
 		IElementType operationToken = expression.getOperationToken();
 
 		// assertion - just ignore
-		if(operationToken == KtTokens.EXCLEXCL)
+		if (operationToken == KtTokens.EXCLEXCL)
 		{
 			myGeneratedElement = generatedElement;
 		}
@@ -326,19 +324,19 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		GeneratedElement selectorGenerate = convertNonnull(selector);
 
-		if(receiver instanceof KtNameReferenceExpression)
+		if (receiver instanceof KtNameReferenceExpression)
 		{
 			DeclarationDescriptor receiverResult = context.get(BindingContext.REFERENCE_TARGET, (KtNameReferenceExpression) receiver);
 
-			if(receiverResult instanceof LazyClassDescriptor)
+			if (receiverResult instanceof LazyClassDescriptor)
 			{
 				SourceElement source = ((LazyClassDescriptor) receiverResult).getSource();
 
-				if(source instanceof KotlinSourceElement)
+				if (source instanceof KotlinSourceElement)
 				{
 					KtElement psi = ((KotlinSourceElement) source).getPsi();
 
-					if(psi instanceof KtObjectDeclaration)
+					if (psi instanceof KtObjectDeclaration)
 					{
 						receiverGenerate = new QualifiedExpression(receiverGenerate, new ReferenceExpression("INSTANCE"));
 					}
@@ -351,31 +349,30 @@ public class ExpressionConveter extends KtVisitorVoid
 		GeneratedElement result = new QualifiedExpression(receiverGenerate, selectorGenerate);
 
 		// if qualified expression is new expression - not interest in it, due selector will generate correct qualifier
-		if(call != null && call.getCandidateDescriptor() instanceof ConstructorDescriptor)
+		if (call != null && call.getCandidateDescriptor() instanceof ConstructorDescriptor)
 		{
 			myGeneratedElement = selectorGenerate;
 			return;
 		}
 
 		String bitToken = null;
-		if(call != null)
+		if (call != null)
 		{
 			bitToken = BitExpressionHelper.remapToBitExpression(call.getCandidateDescriptor());
 		}
 
-		if(bitToken != null)
+		if (bitToken != null)
 		{
 			result = new PrefixExpression(bitToken, receiverGenerate);
-		}
-		else
+		} else
 		{
 			// extension call
-			if(call != null && call.getExtensionReceiver() != null)
+			if (call != null && call.getExtensionReceiver() != null)
 			{
 				GeneratedElement targetSelector = selectorGenerate;
 				TypeName qualifiedType = null;
 
-				if(targetSelector instanceof StaticTypeQualifiedExpression)
+				if (targetSelector instanceof StaticTypeQualifiedExpression)
 				{
 					qualifiedType = ((StaticTypeQualifiedExpression) targetSelector).getTypeName();
 					targetSelector = ((StaticTypeQualifiedExpression) targetSelector).getSelector();
@@ -383,9 +380,9 @@ public class ExpressionConveter extends KtVisitorVoid
 
 				CallableDescriptor candidateDescriptor = call.getCandidateDescriptor();
 				// ignore syntetic java properties, they mapped as extension
-				if(!(candidateDescriptor instanceof SyntheticJavaPropertyDescriptor))
+				if (!(candidateDescriptor instanceof SyntheticJavaPropertyDescriptor))
 				{
-					if(targetSelector instanceof MethodCallExpression)
+					if (targetSelector instanceof MethodCallExpression)
 					{
 						GeneratedElement oldCall = ((MethodCallExpression) targetSelector).getCall();
 						List<GeneratedElement> oldArguments = ((MethodCallExpression) targetSelector).getArguments();
@@ -408,7 +405,14 @@ public class ExpressionConveter extends KtVisitorVoid
 	{
 		TypeName typeName = calculateAnonymousType(expression);
 
-		myGeneratedElement = new AnonymousClassExpression(typeName);
+		TypeSpec.Builder anonymSpec = TypeSpec.anonymousClassBuilder("");
+		KtObjectDeclaration objectDeclaration = expression.getObjectDeclaration();
+
+		KtLightClass lightClass = KotlinAsJavaSupport.getInstance(expression.getProject()).getLightClass(objectDeclaration);
+
+		MemberConverter.convertClass(myContext, anonymSpec, lightClass, false, false, false);
+
+		myGeneratedElement = new AnonymousClassExpression(typeName, anonymSpec);
 	}
 
 	public static TypeName calculateAnonymousType(KtObjectLiteralExpression expression)
@@ -421,13 +425,13 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		List<TypeName> types = new ArrayList<>();
 
-		for(KtSuperTypeListEntry entry : superTypeListEntries)
+		for (KtSuperTypeListEntry entry : superTypeListEntries)
 		{
 			BindingContext context = ResolutionUtils.analyze(entry);
 
 			KotlinType kotlinType = context.get(BindingContext.TYPE, entry.getTypeReference());
 
-			@NotNull TypeName typeName = TypeConverter.convertKotlinType(kotlinType);
+			TypeName typeName = TypeConverter.convertKotlinType(kotlinType);
 
 			types.add(typeName);
 		}
@@ -444,25 +448,25 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		DeclarationDescriptor declarationDescriptor = context.get(BindingContext.DECLARATION_TO_DESCRIPTOR, property);
 
-		if(declarationDescriptor == null)
+		if (declarationDescriptor == null)
 		{
 			return;
 		}
 
 		GeneratedElement initializerGen = initializer == null ? null : convertNonnull(initializer);
 
-		if(declarationDescriptor instanceof LocalVariableDescriptor)
+		if (declarationDescriptor instanceof LocalVariableDescriptor)
 		{
 			KotlinType type = ((LocalVariableDescriptor) declarationDescriptor).getType();
 
 			TypeName typeName = TypeConverter.convertKotlinType(type);
 
 			//  hack for fast return
-			if(initializer instanceof KtBinaryExpression && ((KtBinaryExpression) initializer).getOperationReference().getReferencedNameElementType() == KtTokens.ELVIS)
+			if (initializer instanceof KtBinaryExpression && ((KtBinaryExpression) initializer).getOperationReference().getReferencedNameElementType() == KtTokens.ELVIS)
 			{
 				KtExpression right = ((KtBinaryExpression) initializer).getRight();
 
-				if(right instanceof KtReturnExpression)
+				if (right instanceof KtReturnExpression)
 				{
 					LocalVariableStatement localVarDecl = new LocalVariableStatement(typeName, property.getName(), convertNonnull(((KtBinaryExpression) initializer).getLeft()));
 
@@ -474,13 +478,12 @@ public class ExpressionConveter extends KtVisitorVoid
 				}
 			}
 
-			if(initializerGen instanceof Statement)
+			if (initializerGen instanceof Statement)
 			{
 				LocalVariableStatement localVarDecl = new LocalVariableStatement(typeName, property.getName(), null);
 
 				myGeneratedElement = new BlockStatement(List.of(localVarDecl, initializerGen));
-			}
-			else
+			} else
 			{
 				myGeneratedElement = new LocalVariableStatement(typeName, property.getName(), initializerGen);
 			}
@@ -508,13 +511,12 @@ public class ExpressionConveter extends KtVisitorVoid
 	{
 		List<GeneratedElement> expressions = new ArrayList<>();
 
-		for(KtStringTemplateEntry entry : expression.getEntries())
+		for (KtStringTemplateEntry entry : expression.getEntries())
 		{
-			if(entry instanceof KtStringTemplateEntryWithExpression)
+			if (entry instanceof KtStringTemplateEntryWithExpression)
 			{
 				expressions.add(convertNonnull(entry.getExpression()));
-			}
-			else
+			} else
 			{
 				expressions.add(new ConstantExpression("\"" + entry.getText() + "\""));
 			}
@@ -533,7 +535,7 @@ public class ExpressionConveter extends KtVisitorVoid
 		List<KtCatchClause> catchClauses = expression.getCatchClauses();
 
 		List<TryCatchStatement.Catch> catches = new ArrayList<>();
-		for(KtCatchClause clause : catchClauses)
+		for (KtCatchClause clause : catchClauses)
 		{
 			KtParameter catchParameter = clause.getCatchParameter();
 
@@ -568,17 +570,17 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression, BodyResolveMode.FULL);
 
-		if(call == null)
+		if (call == null)
 		{
 			return;
 		}
 
 		CallableDescriptor resultingDescriptor = call.getResultingDescriptor();
-		if(resultingDescriptor instanceof SamConstructorDescriptor)
+		if (resultingDescriptor instanceof SamConstructorDescriptor)
 		{
 			List<? extends LambdaArgument> functionLiteralArguments = call.getCall().getFunctionLiteralArguments();
 
-			if(functionLiteralArguments.isEmpty())
+			if (functionLiteralArguments.isEmpty())
 			{
 				return;
 			}
@@ -590,16 +592,15 @@ public class ExpressionConveter extends KtVisitorVoid
 			KtBlockExpression bodyExpression = lambdaExpression.getBodyExpression();
 
 			myGeneratedElement = new LambdaExpression(List.of(), convertNonnull(bodyExpression));
-		}
-		else if(resultingDescriptor instanceof ClassConstructorDescriptor || resultingDescriptor instanceof TypeAliasConstructorDescriptor)
+		} else if (resultingDescriptor instanceof ClassConstructorDescriptor || resultingDescriptor instanceof TypeAliasConstructorDescriptor)
 		{
 			List<GeneratedElement> args = new ArrayList<>();
 
 			List<ResolvedValueArgument> valueArgumentsByIndex = call.getValueArgumentsByIndex();
 
-			for(ResolvedValueArgument valueArgument : valueArgumentsByIndex)
+			for (ResolvedValueArgument valueArgument : valueArgumentsByIndex)
 			{
-				for(ValueArgument argument : valueArgument.getArguments())
+				for (ValueArgument argument : valueArgument.getArguments())
 				{
 					args.add(convertNonnull(argument.getArgumentExpression()));
 				}
@@ -610,22 +611,21 @@ public class ExpressionConveter extends KtVisitorVoid
 			TypeName typeName = TypeConverter.convertKotlinType(returnType);
 
 			myGeneratedElement = new NewExpression(typeName, args);
-		}
-		else
+		} else
 		{
 			List<GeneratedElement> args = new ArrayList<>();
 
 			List<ResolvedValueArgument> valueArgumentsByIndex = call.getValueArgumentsByIndex();
 
-			for(ResolvedValueArgument valueArgument : valueArgumentsByIndex)
+			for (ResolvedValueArgument valueArgument : valueArgumentsByIndex)
 			{
-				for(ValueArgument argument : valueArgument.getArguments())
+				for (ValueArgument argument : valueArgument.getArguments())
 				{
 					args.add(convertNonnull(argument.getArgumentExpression()));
 				}
 			}
 
-			if(isFunctionFromPackage(resultingDescriptor, "kotlin", "arrayOf"))
+			if (isFunctionFromPackage(resultingDescriptor, "kotlin", "arrayOf"))
 			{
 				Map<TypeParameterDescriptor, KotlinType> typeArguments = call.getTypeArguments();
 
@@ -634,32 +634,25 @@ public class ExpressionConveter extends KtVisitorVoid
 				ArrayTypeName arrayType = ArrayTypeName.of(TypeConverter.convertKotlinType(first));
 
 				myGeneratedElement = new NewArrayExpression(arrayType, args);
-			}
-			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "byteArrayOf"))
+			} else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "byteArrayOf"))
 			{
 				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(byte.class), args);
-			}
-			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "shortArrayOf"))
+			} else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "shortArrayOf"))
 			{
 				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(short.class), args);
-			}
-			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "intArrayOf"))
+			} else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "intArrayOf"))
 			{
 				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(int.class), args);
-			}
-			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "longArrayOf"))
+			} else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "longArrayOf"))
 			{
 				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(long.class), args);
-			}
-			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "floatArrayOf"))
+			} else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "floatArrayOf"))
 			{
 				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(float.class), args);
-			}
-			else if(isFunctionFromPackage(resultingDescriptor, "kotlin", "doubleArrayOf"))
+			} else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "doubleArrayOf"))
 			{
 				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(double.class), args);
-			}
-			else
+			} else
 			{
 				genCall = FunctionRemapper.remap(call, genCall);
 
@@ -672,11 +665,11 @@ public class ExpressionConveter extends KtVisitorVoid
 
 	private static boolean isFunctionFromPackage(CallableDescriptor callableDescriptor, String packageName, @NotNull String name)
 	{
-		if(callableDescriptor instanceof FunctionDescriptor && name.equals(callableDescriptor.getName().asString()))
+		if (callableDescriptor instanceof FunctionDescriptor && name.equals(callableDescriptor.getName().asString()))
 		{
 			DeclarationDescriptor containingDeclaration = callableDescriptor.getContainingDeclaration();
 
-			if(containingDeclaration instanceof PackageFragmentDescriptor)
+			if (containingDeclaration instanceof PackageFragmentDescriptor)
 			{
 				return packageName.equals(((PackageFragmentDescriptor) containingDeclaration).getFqName().asString());
 			}
@@ -690,7 +683,7 @@ public class ExpressionConveter extends KtVisitorVoid
 	{
 		KtSimpleNameExpression operationReference = expression.getOperationReference();
 
-		if(operationReference.getReferencedNameElementType() == KtTokens.AS_KEYWORD)
+		if (operationReference.getReferencedNameElementType() == KtTokens.AS_KEYWORD)
 		{
 			BindingContext context = ResolutionUtils.analyze(expression.getRight());
 
@@ -712,26 +705,24 @@ public class ExpressionConveter extends KtVisitorVoid
 		GeneratedElement rightGen = convertNonnull(rightExpr);
 
 		IElementType operationToken = expression.getOperationToken();
-		if(operationToken == KtTokens.EQEQ)
+		if (operationToken == KtTokens.EQEQ)
 		{
-			if(ConstantExpression.isNull(rightGen))
+			if (ConstantExpression.isNull(rightGen))
 			{
 				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "==");
-			}
-			else
+			} else
 			{
 				myGeneratedElement = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
 			}
 			return;
 		}
 
-		if(operationToken == KtTokens.EXCLEQ)
+		if (operationToken == KtTokens.EXCLEQ)
 		{
-			if(ConstantExpression.isNull(rightGen))
+			if (ConstantExpression.isNull(rightGen))
 			{
 				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "!=");
-			}
-			else
+			} else
 			{
 				myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
 			}
@@ -739,19 +730,19 @@ public class ExpressionConveter extends KtVisitorVoid
 			return;
 		}
 
-		if(operationToken == KtTokens.EQEQEQ)
+		if (operationToken == KtTokens.EQEQEQ)
 		{
 			myGeneratedElement = new BinaryExpression(leftGen, rightGen, "==");
 			return;
 		}
 
-		if(operationToken == KtTokens.EXCLEQEQEQ)
+		if (operationToken == KtTokens.EXCLEQEQEQ)
 		{
 			myGeneratedElement = new BinaryExpression(leftGen, rightGen, "!=");
 			return;
 		}
 
-		if(operationToken == KtTokens.ELVIS)
+		if (operationToken == KtTokens.ELVIS)
 		{
 			BinaryExpression condition = new BinaryExpression(leftGen, new ConstantExpression("null"), "==");
 			myGeneratedElement = new TernaryExpression(condition, rightGen, leftGen);
@@ -760,28 +751,27 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression, BodyResolveMode.FULL);
 
-		if(call == null && leftExpr != null)
+		if (call == null && leftExpr != null)
 		{
 			ResolvedCall<? extends CallableDescriptor> leftCall = ResolutionUtils.resolveToCall(leftExpr, BodyResolveMode.FULL);
 
 			DeclarationDescriptor leftResult = leftCall == null ? null : leftCall.getCandidateDescriptor();
 
-			if(leftResult instanceof PropertyDescriptor)
+			if (leftResult instanceof PropertyDescriptor)
 			{
 				PropertySetterDescriptor setter = ((PropertyDescriptor) leftResult).getSetter();
 
-				if(setter == null || ((PropertyDescriptor) leftResult).getVisibility() == DescriptorVisibilities.PRIVATE && !((PropertyDescriptor) leftResult).isConst())
+				if (setter == null || ((PropertyDescriptor) leftResult).getVisibility() == DescriptorVisibilities.PRIVATE && !((PropertyDescriptor) leftResult).isConst())
 				{
 					myGeneratedElement = new AssignExpression(convertNonnull(leftExpr), rightGen);
-				}
-				else
+				} else
 				{
 					String setMethodName = "set" + StringUtil.capitalize(leftResult.getName().asString());
-					if(leftResult instanceof SyntheticJavaPropertyDescriptor)
+					if (leftResult instanceof SyntheticJavaPropertyDescriptor)
 					{
 						FunctionDescriptor setMethod = ((SyntheticJavaPropertyDescriptor) leftResult).getSetMethod();
 
-						if(setMethod != null)
+						if (setMethod != null)
 						{
 							setMethodName = setMethod.getName().asString();
 						}
@@ -790,34 +780,32 @@ public class ExpressionConveter extends KtVisitorVoid
 
 					MethodCallExpression callExpr = new MethodCallExpression(new ReferenceExpression(setMethodName), Arrays.asList(rightGen));
 
-					if(leftGen instanceof QualifiedExpression)
+					if (leftGen instanceof QualifiedExpression)
 					{
 						GeneratedElement left = ((QualifiedExpression) leftGen).getLeft();
 
 						myGeneratedElement = new QualifiedExpression(left, callExpr);
-					}
-					else
+					} else
 					{
 						myGeneratedElement = callExpr;
 					}
 				}
 			}
-		}
-		else if(call != null)
+		} else if (call != null)
 		{
 			String bitOperator = BitExpressionHelper.remapToBitExpression(call.getCandidateDescriptor());
-			if(bitOperator != null)
+			if (bitOperator != null)
 			{
 				myGeneratedElement = new BinaryExpression(leftGen, rightGen, bitOperator);
 			}
 		}
 
-		if(myGeneratedElement != null)
+		if (myGeneratedElement != null)
 		{
 			return;
 		}
 
-		if(operationToken == KtTokens.EQ)
+		if (operationToken == KtTokens.EQ)
 		{
 			myGeneratedElement = new AssignExpression(leftGen, rightGen);
 			return;
@@ -842,16 +830,15 @@ public class ExpressionConveter extends KtVisitorVoid
 		boolean canByTernary = false;
 
 		PsiElement parent = expression.getParent();
-		if(parent instanceof KtProperty || parent instanceof KtBinaryExpression || parent instanceof KtValueArgument || parent instanceof KtReturnExpression)
+		if (parent instanceof KtProperty || parent instanceof KtBinaryExpression || parent instanceof KtValueArgument || parent instanceof KtReturnExpression)
 		{
 			canByTernary = true;
 		}
 
-		if(canByTernary)
+		if (canByTernary)
 		{
 			myGeneratedElement = new TernaryExpression(condition, trueBlock, falseBlock);
-		}
-		else
+		} else
 		{
 			myGeneratedElement = new IfStatement(condition, trueBlock, falseBlock);
 		}
@@ -867,18 +854,16 @@ public class ExpressionConveter extends KtVisitorVoid
 	public void visitReturnExpression(KtReturnExpression expression)
 	{
 		KtExpression returnedExpression = expression.getReturnedExpression();
-		if(returnedExpression == null)
+		if (returnedExpression == null)
 		{
 			myGeneratedElement = new ReturnStatement(null);
-		}
-		else
+		} else
 		{
 			@NotNull GeneratedElement innerGen = convertNonnull(returnedExpression);
-			if(innerGen instanceof Expression)
+			if (innerGen instanceof Expression)
 			{
 				myGeneratedElement = new ReturnStatement(innerGen);
-			}
-			else
+			} else
 			{
 				// FIXME [VISTALL] this must be control by each expression
 				myGeneratedElement = innerGen;
@@ -908,31 +893,29 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		GeneratedElement elseItem = null;
 
-		for(KtWhenEntry entry : entries)
+		for (KtWhenEntry entry : entries)
 		{
 			GeneratedElement whenExpr = convertNonnull(entry.getExpression());
 
 			PsiElement elseKeyword = entry.getElseKeyword();
 
-			for(KtWhenCondition ktWhenCondition : entry.getConditions())
+			for (KtWhenCondition ktWhenCondition : entry.getConditions())
 			{
-				if(ktWhenCondition instanceof KtWhenConditionWithExpression)
+				if (ktWhenCondition instanceof KtWhenConditionWithExpression)
 				{
 					KtExpression innerExpr = ((KtWhenConditionWithExpression) ktWhenCondition).getExpression();
 					GeneratedElement inner = convertNonnull(innerExpr);
 
-					if(subjectExpression != null)
+					if (subjectExpression != null)
 					{
 						MethodCallExpression equalsCall = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(subjectExpression, inner));
 
 						ifParts.add(Couple.of(equalsCall, whenExpr));
-					}
-					else
+					} else
 					{
 						ifParts.add(Couple.of(inner, whenExpr));
 					}
-				}
-				else if(ktWhenCondition instanceof KtWhenConditionIsPattern)
+				} else if (ktWhenCondition instanceof KtWhenConditionIsPattern)
 				{
 					boolean isNot = ((KtWhenConditionIsPattern) ktWhenCondition).isNegated();
 
@@ -943,20 +926,19 @@ public class ExpressionConveter extends KtVisitorVoid
 					assert subjectExpression != null;
 
 					GeneratedElement target = new InstanceOfExpression(subjectExpression, TypeConverter.convertKotlinType(type));
-					if(isNot)
+					if (isNot)
 					{
 						target = new PrefixExpression("!", new ParExpression(target));
 					}
 
 					ifParts.add(Couple.of(target, whenExpr));
-				}
-				else
+				} else
 				{
 					ifParts.add(Couple.of(convertNonnull(ktWhenCondition), whenExpr));
 				}
 			}
 
-			if(elseKeyword != null)
+			if (elseKeyword != null)
 			{
 				elseItem = whenExpr;
 			}
@@ -966,7 +948,7 @@ public class ExpressionConveter extends KtVisitorVoid
 
 		IfStatement prevStatement = null;
 
-		for(Couple<GeneratedElement> ifPart : reverse)
+		for (Couple<GeneratedElement> ifPart : reverse)
 		{
 			GeneratedElement elsePart = prevStatement == null ? mapper.map(elseItem) : prevStatement;
 
@@ -1014,7 +996,7 @@ public class ExpressionConveter extends KtVisitorVoid
 		List<KtExpression> statements = expression.getStatements();
 
 		List<GeneratedElement> generatedElements = new ArrayList<>();
-		for(KtExpression statement : statements)
+		for (KtExpression statement : statements)
 		{
 			GeneratedElement generatedElement = convertNonnull(statement);
 
@@ -1038,14 +1020,14 @@ public class ExpressionConveter extends KtVisitorVoid
 		BindingContext context = ResolutionUtils.analyze(lambdaExpression);
 
 		List<Pair<TypeName, String>> params = new ArrayList<>();
-		for(KtParameter valueParameter : valueParameters)
+		for (KtParameter valueParameter : valueParameters)
 		{
 			params.add(Pair.create(null, valueParameter.getName()));
 		}
 
 		KtBlockExpression bodyExpression = lambdaExpression.getBodyExpression();
 
-		if(valueParameters.isEmpty())
+		if (valueParameters.isEmpty())
 		{
 			ValueParameterDescriptor[] foundIt = new ValueParameterDescriptor[1];
 			bodyExpression.accept(new PsiRecursiveElementWalkingVisitor()
@@ -1053,30 +1035,28 @@ public class ExpressionConveter extends KtVisitorVoid
 				@Override
 				public void visitElement(PsiElement element)
 				{
-					if(element instanceof KtSimpleNameExpression)
+					if (element instanceof KtSimpleNameExpression)
 					{
 						DeclarationDescriptor declarationDescriptor = (context.get(BindingContext.REFERENCE_TARGET, (KtSimpleNameExpression) element));
-						if(declarationDescriptor instanceof ValueParameterDescriptor)
+						if (declarationDescriptor instanceof ValueParameterDescriptor)
 						{
-							if(context.get(BindingContext.AUTO_CREATED_IT, (ValueParameterDescriptor) declarationDescriptor) == true)
+							if (context.get(BindingContext.AUTO_CREATED_IT, (ValueParameterDescriptor) declarationDescriptor) == true)
 							{
 								foundIt[0] = (ValueParameterDescriptor) declarationDescriptor;
 								stopWalking();
 							}
 						}
-					}
-					else if(element instanceof KtLambdaExpression)
+					} else if (element instanceof KtLambdaExpression)
 					{
 						stopWalking();
-					}
-					else
+					} else
 					{
 						super.visitElement(element);
 					}
 				}
 			});
 
-			if(foundIt[0] != null)
+			if (foundIt[0] != null)
 			{
 				params.add(Pair.create(null, foundIt[0].getName().toString()));
 			}

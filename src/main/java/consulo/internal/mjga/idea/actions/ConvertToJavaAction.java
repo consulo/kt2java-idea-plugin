@@ -46,13 +46,13 @@ public class ConvertToJavaAction extends AnAction
 		Project project = e.getProject();
 
 		VirtualFile[] files = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY);
-		if(files == null || files.length == 0 || project == null)
+		if (files == null || files.length == 0 || project == null)
 		{
 			return;
 		}
 
 		List<VirtualFile> kotlinFiles = collectKotlinFiles(files);
-		if(kotlinFiles.isEmpty())
+		if (kotlinFiles.isEmpty())
 		{
 			return;
 		}
@@ -67,10 +67,10 @@ public class ConvertToJavaAction extends AnAction
 					PsiManager psiManager = PsiManager.getInstance(project);
 
 					Map<VirtualFile, KtFile> vfToPsiFile = new LinkedHashMap<>();
-					for(VirtualFile kotlinFile : kotlinFiles)
+					for (VirtualFile kotlinFile : kotlinFiles)
 					{
 						PsiFile file = psiManager.findFile(kotlinFile);
-						if(file instanceof KtFile)
+						if (file instanceof KtFile)
 						{
 							vfToPsiFile.put(kotlinFile, (KtFile) file);
 						}
@@ -94,13 +94,18 @@ public class ConvertToJavaAction extends AnAction
 
 	private static void collectKotlinFiles(VirtualFile[] virtualFiles, List<VirtualFile> files)
 	{
-		for(VirtualFile child : virtualFiles)
+		if (virtualFiles == null)
 		{
-			if(child.isDirectory())
+			return;
+		}
+
+		for (VirtualFile child : virtualFiles)
+		{
+			if (child.isDirectory())
 			{
 				collectKotlinFiles(child.getChildren(), files);
 			}
-			else if(child.getFileType() == KotlinFileType.INSTANCE)
+			else if (child.getFileType() == KotlinFileType.INSTANCE)
 			{
 				files.add(child);
 			}
