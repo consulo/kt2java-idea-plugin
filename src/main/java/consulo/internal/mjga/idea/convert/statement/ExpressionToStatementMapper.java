@@ -39,6 +39,11 @@ public class ExpressionToStatementMapper
 		@Override
 		public @NotNull GeneratedElement map(GeneratedElement element)
 		{
+			if (element instanceof ReturnStatement)
+			{
+				// return 'return' as is - do not try make var = return
+				return element;
+			}
 			return new ExpressionStatement(new BinaryExpression(new ReferenceExpression(myName), element, "="));
 		}
 	}
