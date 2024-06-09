@@ -12,7 +12,6 @@ import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.expression.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.kotlinExp.KtBinaryExpressionAnalyzer;
-import consulo.internal.mjga.idea.convert.library.FunctionRemapper;
 import consulo.internal.mjga.idea.convert.library.PackageFunctionRemapTables;
 import consulo.internal.mjga.idea.convert.statement.*;
 import org.jetbrains.annotations.NotNull;
@@ -24,7 +23,6 @@ import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.kotlin.descriptors.impl.SyntheticFieldDescriptor;
 import org.jetbrains.kotlin.descriptors.impl.TypeAliasConstructorDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
-import org.jetbrains.kotlin.lexer.KtToken;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.name.Name;
@@ -49,7 +47,7 @@ import java.util.stream.Collectors;
  * @author VISTALL
  * @since 2020-06-24
  */
-public class ExpressionConveter extends KtVisitorVoid
+public class ExpressionConverter extends KtVisitorVoid
 {
 	private final ConvertContext myContext;
 
@@ -61,7 +59,7 @@ public class ExpressionConveter extends KtVisitorVoid
 			return new ConstantExpression("\"unsupported\"");
 		}
 
-		ExpressionConveter conveter = new ExpressionConveter(context);
+		ExpressionConverter conveter = new ExpressionConverter(context);
 		element.accept(conveter);
 		GeneratedElement generatedElement = conveter.myGeneratedElement;
 		if (generatedElement == null)
@@ -73,7 +71,7 @@ public class ExpressionConveter extends KtVisitorVoid
 
 	private GeneratedElement myGeneratedElement;
 
-	public ExpressionConveter(ConvertContext context)
+	public ExpressionConverter(ConvertContext context)
 	{
 		myContext = context;
 	}
@@ -160,13 +158,7 @@ public class ExpressionConveter extends KtVisitorVoid
 			}
 			else if (receiverResult instanceof PropertyDescriptor)
 			{
-				if (isClassMember(receiverResult, "kotlin.Array", "size") ||
-						isClassMember(receiverResult, "kotlin.ByteArray", "size") ||
-						isClassMember(receiverResult, "kotlin.ShortArray", "size") ||
-						isClassMember(receiverResult, "kotlin.LongArray", "size") ||
-						isClassMember(receiverResult, "kotlin.DoubleArray", "size") ||
-						isClassMember(receiverResult, "kotlin.FloatArray", "size") ||
-						isClassMember(receiverResult, "kotlin.IntArray", "size"))
+				if (isClassMember(receiverResult, "kotlin.Array", "size") || isClassMember(receiverResult, "kotlin.ByteArray", "size") || isClassMember(receiverResult, "kotlin.ShortArray", "size") || isClassMember(receiverResult, "kotlin.LongArray", "size") || isClassMember(receiverResult, "kotlin.DoubleArray", "size") || isClassMember(receiverResult, "kotlin.FloatArray", "size") || isClassMember(receiverResult, "kotlin.IntArray", "size"))
 				{
 					myGeneratedElement = new ReferenceExpression("length");
 				}
@@ -433,7 +425,7 @@ public class ExpressionConveter extends KtVisitorVoid
 
 				for (ValueArgument argument : valueArguments)
 				{
-					args.add(ExpressionConveter.convertNonnull(argument.getArgumentExpression(), myContext));
+					args.add(ExpressionConverter.convertNonnull(argument.getArgumentExpression(), myContext));
 				}
 			}
 		}
@@ -671,18 +663,15 @@ public class ExpressionConveter extends KtVisitorVoid
 				}
 			}
 
-			myGeneratedElement = getFunctionRef(resultingDescriptor)
-					.map(PackageFunctionRemapTables.table::get)
-					.map(table ->
-					{
-						GeneratedElement generated = table.generate(call, args);
-						return table.modifyCallIfPackageOwner() ? modifyCallIfPackageOwner(resultingDescriptor, generated) : generated;
-					})
-					.orElseGet(() ->
-					{
-						GeneratedElement temp = new MethodCallExpression(genCall, args);
-						return modifyCallIfPackageOwner(resultingDescriptor, temp);
-					});
+			myGeneratedElement = getFunctionRef(resultingDescriptor).map(PackageFunctionRemapTables.table::get).map(table ->
+			{
+				GeneratedElement generated = table.generate(call, args);
+				return table.modifyCallIfPackageOwner() ? modifyCallIfPackageOwner(resultingDescriptor, generated) : generated;
+			}).orElseGet(() ->
+			{
+				GeneratedElement temp = new MethodCallExpression(genCall, args);
+				return modifyCallIfPackageOwner(resultingDescriptor, temp);
+			});
 		}
 	}
 

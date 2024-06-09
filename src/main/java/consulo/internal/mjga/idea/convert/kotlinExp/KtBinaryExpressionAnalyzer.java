@@ -5,7 +5,6 @@ import com.intellij.psi.tree.IElementType;
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.BitExpressionHelper;
 import consulo.internal.mjga.idea.convert.ConvertContext;
-import consulo.internal.mjga.idea.convert.ExpressionConveter;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
 import consulo.internal.mjga.idea.convert.expression.*;
 import org.jetbrains.kotlin.descriptors.*;

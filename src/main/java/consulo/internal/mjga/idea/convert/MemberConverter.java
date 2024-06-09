@@ -359,7 +359,7 @@ public class MemberConverter
 
 						if (initializer != null)
 						{
-							GeneratedElement codeBlock = ExpressionConveter.convertNonnull(initializer, context);
+							GeneratedElement codeBlock = ExpressionConverter.convertNonnull(initializer, context);
 							fieldBuilder.initializer(codeBlock.generate());
 						}
 					}
@@ -381,7 +381,7 @@ public class MemberConverter
 
 			for (KtAnonymousInitializer anonymousInitializer : anonymousInitializers)
 			{
-				constructorInit.add(ExpressionConveter.convertNonnull(anonymousInitializer.getBody(), context));
+				constructorInit.add(ExpressionConverter.convertNonnull(anonymousInitializer.getBody(), context));
 			}
 		}
 
@@ -529,7 +529,7 @@ public class MemberConverter
 							List<GeneratedElement> args = new ArrayList<>();
 							for (ValueArgument argument : valueArguments)
 							{
-								args.add(ExpressionConveter.convertNonnull(argument.getArgumentExpression(), context));
+								args.add(ExpressionConverter.convertNonnull(argument.getArgumentExpression(), context));
 							}
 
 							MethodCallExpression expression = new MethodCallExpression(new SuperExpression(), args);
@@ -671,7 +671,7 @@ public class MemberConverter
 		}
 
 		GeneratedElement inner;
-		GeneratedElement generatedElement = ExpressionConveter.convertNonnull(body, context);
+		GeneratedElement generatedElement = ExpressionConverter.convertNonnull(body, context);
 		if (generatedElement instanceof Statement)
 		{
 			inner = generatedElement;

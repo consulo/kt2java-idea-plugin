@@ -7,17 +7,11 @@ import com.intellij.psi.PsiElement;
 import consulo.internal.mjga.idea.convert.generate.JavaSourceClassType;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.caches.resolve.KotlinCacheService;
-import org.jetbrains.kotlin.idea.resolve.ResolutionFacade;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.psi.KtClass;
 import org.jetbrains.kotlin.psi.KtClassOrObject;
-import org.jetbrains.kotlin.psi.KtElement;
 import org.jetbrains.kotlin.psi.KtFile;
-import org.jetbrains.kotlin.resolve.BindingContext;
-import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -102,6 +96,6 @@ public class ConvertContext
 	@NotNull
 	public GeneratedElement convertExpression(PsiElement psiElement)
 	{
-		return ExpressionConveter.convertNonnull(psiElement, this);
+		return ExpressionConverter.convertNonnull(psiElement, this);
 	}
 }

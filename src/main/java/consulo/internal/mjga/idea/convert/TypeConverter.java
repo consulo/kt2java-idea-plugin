@@ -19,7 +19,6 @@ import org.jetbrains.kotlin.types.TypeConstructor;
 import org.jetbrains.kotlin.types.TypeProjection;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author VISTALL
@@ -130,7 +129,7 @@ public class TypeConverter
 
 					if(psi.getParent() instanceof KtObjectLiteralExpression)
 					{
-						return ExpressionConveter.calculateAnonymousType((KtObjectLiteralExpression) psi.getParent());
+						return ExpressionConverter.calculateAnonymousType((KtObjectLiteralExpression) psi.getParent());
 					}
 
 					FqName fqName = ((KtClassOrObject) psi).getFqName();
