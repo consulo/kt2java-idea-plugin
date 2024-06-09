@@ -20,7 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-public class KtBinaryExpressionAnalyzer extends ExpressionAnalyzer<KtBinaryExpression>
+public class KtBinaryExpressionAnalyzer extends KtExpressionAnalyzer<KtBinaryExpression>
 {
 	@Override
 	public GeneratedElement analyze(KtBinaryExpression expression, ConvertContext context)

@@ -12,6 +12,7 @@ import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.expression.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.kotlinExp.KtBinaryExpressionAnalyzer;
+import consulo.internal.mjga.idea.convert.kotlinExp.KtDotQualifiedExpressionAnalyzer;
 import consulo.internal.mjga.idea.convert.library.PackageFunctionRemapTables;
 import consulo.internal.mjga.idea.convert.statement.*;
 import org.jetbrains.annotations.NotNull;
@@ -321,90 +322,7 @@ public class ExpressionConverter extends KtVisitorVoid
 	@Override
 	public void visitDotQualifiedExpression(KtDotQualifiedExpression expression)
 	{
-		BindingContext context = ResolutionUtils.analyze(expression);
-
-		KtExpression receiver = expression.getReceiverExpression();
-		KtExpression selector = expression.getSelectorExpression();
-
-		GeneratedElement receiverGenerate = convertNonnull(receiver);
-
-		GeneratedElement selectorGenerate = convertNonnull(selector);
-
-		if (receiver instanceof KtNameReferenceExpression)
-		{
-			DeclarationDescriptor receiverResult = context.get(BindingContext.REFERENCE_TARGET, (KtNameReferenceExpression) receiver);
-
-			if (receiverResult instanceof LazyClassDescriptor)
-			{
-				SourceElement source = ((LazyClassDescriptor) receiverResult).getSource();
-
-				if (source instanceof KotlinSourceElement)
-				{
-					KtElement psi = ((KotlinSourceElement) source).getPsi();
-
-					if (psi instanceof KtObjectDeclaration)
-					{
-						receiverGenerate = new QualifiedExpression(receiverGenerate, new ReferenceExpression("INSTANCE"));
-					}
-				}
-			}
-		}
-
-		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(selector, BodyResolveMode.FULL);
-
-		GeneratedElement result = new QualifiedExpression(receiverGenerate, selectorGenerate);
-
-		// if qualified expression is new expression - not interest in it, due selector will generate correct qualifier
-		if (call != null && call.getCandidateDescriptor() instanceof ConstructorDescriptor)
-		{
-			myGeneratedElement = selectorGenerate;
-			return;
-		}
-
-		String bitToken = null;
-		if (call != null)
-		{
-			bitToken = BitExpressionHelper.remapToBitExpression(call.getCandidateDescriptor());
-		}
-
-		if (bitToken != null)
-		{
-			result = new PrefixExpression(bitToken, receiverGenerate);
-		}
-		else
-		{
-			// extension call
-			if (call != null && call.getExtensionReceiver() != null)
-			{
-				GeneratedElement targetSelector = selectorGenerate;
-				TypeName qualifiedType = null;
-
-				if (targetSelector instanceof StaticTypeQualifiedExpression)
-				{
-					qualifiedType = ((StaticTypeQualifiedExpression) targetSelector).getTypeName();
-					targetSelector = ((StaticTypeQualifiedExpression) targetSelector).getSelector();
-				}
-
-				CallableDescriptor candidateDescriptor = call.getCandidateDescriptor();
-				// ignore syntetic java properties, they mapped as extension
-				if (!(candidateDescriptor instanceof SyntheticJavaPropertyDescriptor))
-				{
-					if (targetSelector instanceof MethodCallExpression)
-					{
-						GeneratedElement oldCall = ((MethodCallExpression) targetSelector).getCall();
-						List<GeneratedElement> oldArguments = ((MethodCallExpression) targetSelector).getArguments();
-
-						ArrayList<GeneratedElement> newArgs = new ArrayList<>(oldArguments);
-						newArgs.add(0, receiverGenerate);
-
-						MethodCallExpression newCall = new MethodCallExpression(oldCall, newArgs);
-						result = qualifiedType == null ? newCall : new StaticTypeQualifiedExpression(qualifiedType, newCall);
-					}
-				}
-			}
-		}
-
-		myGeneratedElement = result;
+		myGeneratedElement = new KtDotQualifiedExpressionAnalyzer().analyze(expression, myContext);
 	}
 
 	@Override
