@@ -5,6 +5,7 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,12 +15,19 @@ import java.util.stream.Collectors;
  */
 public class NewExpression extends Expression
 {
-	private TypeName myTypeName;
-	private List<GeneratedElement> myArguments;
+	private final TypeName myTypeName;
+	private final List<GeneratedElement> myArguments;
+	private final List<TypeName> myTypeArguments;
 
 	public NewExpression(TypeName typeName, List<GeneratedElement> arguments)
 	{
+		this(typeName, List.of(), arguments);
+	}
+
+	public NewExpression(TypeName typeName, List<TypeName> typeArguments, List<GeneratedElement> arguments)
+	{
 		myTypeName = typeName;
+		myTypeArguments = typeArguments;
 		myArguments = arguments;
 	}
 
@@ -27,10 +35,25 @@ public class NewExpression extends Expression
 	public CodeBlock generate(boolean needNewLine)
 	{
 		CodeBlock args = CodeBlock.join(myArguments.stream().map(GeneratedElement::generate).collect(Collectors.toList()), ", ");
-		if(myTypeName instanceof ArrayTypeName)
+		if (myTypeName instanceof ArrayTypeName)
 		{
 			return CodeBlock.of(wrap("new $T[$L]", needNewLine), ((ArrayTypeName) myTypeName).componentType, args);
 		}
-		return CodeBlock.of(wrap("new $T($L)", needNewLine), myTypeName, args);
+
+		if (myTypeArguments.isEmpty())
+		{
+			return CodeBlock.of(wrap("new $T($L)", needNewLine), myTypeName, args);
+		}
+		else
+		{
+			String typeArgParts = myTypeArguments.stream().map(typeName -> "$T").collect(Collectors.joining(", "));
+
+			List<Object> generationArguments = new ArrayList<>();
+			generationArguments.add(myTypeName);
+			generationArguments.addAll(myTypeArguments);
+			generationArguments.add(args);
+
+			return CodeBlock.of(wrap("new $T<" + typeArgParts + ">($L)", needNewLine), generationArguments.toArray());
+		}
 	}
 }

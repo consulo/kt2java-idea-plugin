@@ -66,7 +66,7 @@ public class TypeConverter
 		TypeName typeName = convertKotlinDescriptor(declarationDescriptor, kotlinType.getArguments(), kotlinType.isMarkedNullable());
 		if(typeName == null)
 		{
-			return ClassName.get("", "ErrorType");
+			return TypeName.OBJECT;
 		}
 
 		List<TypeProjection> arguments = kotlinType.getArguments();

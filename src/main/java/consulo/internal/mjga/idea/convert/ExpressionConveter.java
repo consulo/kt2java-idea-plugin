@@ -12,6 +12,7 @@ import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.expression.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.library.FunctionRemapper;
+import consulo.internal.mjga.idea.convert.library.PackageFunctionRemapTables;
 import consulo.internal.mjga.idea.convert.statement.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -669,64 +670,34 @@ public class ExpressionConveter extends KtVisitorVoid
 				}
 			}
 
-			if (isFunctionFromPackage(resultingDescriptor, "kotlin", "arrayOf"))
-			{
-				Map<TypeParameterDescriptor, KotlinType> typeArguments = call.getTypeArguments();
-
-				KotlinType first = ContainerUtil.getFirstItem(typeArguments.values());
-
-				ArrayTypeName arrayType = ArrayTypeName.of(TypeConverter.convertKotlinType(first));
-
-				myGeneratedElement = new NewArrayExpression(arrayType, args);
-			}
-			else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "byteArrayOf"))
-			{
-				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(byte.class), args);
-			}
-			else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "shortArrayOf"))
-			{
-				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(short.class), args);
-			}
-			else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "intArrayOf"))
-			{
-				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(int.class), args);
-			}
-			else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "longArrayOf"))
-			{
-				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(long.class), args);
-			}
-			else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "floatArrayOf"))
-			{
-				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(float.class), args);
-			}
-			else if (isFunctionFromPackage(resultingDescriptor, "kotlin", "doubleArrayOf"))
-			{
-				myGeneratedElement = new NewArrayExpression(ArrayTypeName.of(double.class), args);
-			}
-			else
-			{
-				genCall = FunctionRemapper.remap(call, genCall);
-
-				myGeneratedElement = new MethodCallExpression(genCall, args);
-
-				myGeneratedElement = modifyCallIfPackageOwner(resultingDescriptor, myGeneratedElement);
-			}
+			myGeneratedElement = getFunctionRef(resultingDescriptor)
+					.map(PackageFunctionRemapTables.table::get)
+					.map(table ->
+					{
+						GeneratedElement generated = table.generate(call, args);
+						return table.modifyCallIfPackageOwner() ? modifyCallIfPackageOwner(resultingDescriptor, generated) : generated;
+					})
+					.orElseGet(() ->
+					{
+						GeneratedElement temp = new MethodCallExpression(genCall, args);
+						return modifyCallIfPackageOwner(resultingDescriptor, temp);
+					});
 		}
 	}
 
-	private static boolean isFunctionFromPackage(CallableDescriptor callableDescriptor, String packageName, @NotNull String name)
+	private static Optional<Map.Entry<FqName, Name>> getFunctionRef(CallableDescriptor callableDescriptor)
 	{
-		if (callableDescriptor instanceof FunctionDescriptor && name.equals(callableDescriptor.getName().asString()))
+		if (callableDescriptor instanceof FunctionDescriptor)
 		{
 			DeclarationDescriptor containingDeclaration = callableDescriptor.getContainingDeclaration();
 
 			if (containingDeclaration instanceof PackageFragmentDescriptor)
 			{
-				return packageName.equals(((PackageFragmentDescriptor) containingDeclaration).getFqName().asString());
+				return Optional.of(Map.entry(((PackageFragmentDescriptor) containingDeclaration).getFqName(), callableDescriptor.getName()));
 			}
 		}
 
-		return false;
+		return Optional.empty();
 	}
 
 	@Override
