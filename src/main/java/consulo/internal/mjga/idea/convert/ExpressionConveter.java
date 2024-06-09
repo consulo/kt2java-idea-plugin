@@ -11,6 +11,7 @@ import com.intellij.util.containers.ContainerUtil;
 import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.expression.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
+import consulo.internal.mjga.idea.convert.kotlinExp.KtBinaryExpressionAnalyzer;
 import consulo.internal.mjga.idea.convert.library.FunctionRemapper;
 import consulo.internal.mjga.idea.convert.library.PackageFunctionRemapTables;
 import consulo.internal.mjga.idea.convert.statement.*;
@@ -720,139 +721,8 @@ public class ExpressionConveter extends KtVisitorVoid
 	@Override
 	public void visitBinaryExpression(KtBinaryExpression expression)
 	{
-		KtExpression leftExpr = expression.getLeft();
-		KtExpression rightExpr = expression.getRight();
-
-		GeneratedElement leftGen = convertNonnull(leftExpr);
-		GeneratedElement rightGen = convertNonnull(rightExpr);
-
-		IElementType operationToken = expression.getOperationToken();
-		if (operationToken == KtTokens.EQEQ)
-		{
-			if (ConstantExpression.isNull(rightGen))
-			{
-				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "==");
-			}
-			else
-			{
-				myGeneratedElement = new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen));
-			}
-			return;
-		}
-
-		if (operationToken == KtTokens.EXCLEQ)
-		{
-			if (ConstantExpression.isNull(rightGen))
-			{
-				myGeneratedElement = new BinaryExpression(leftGen, rightGen, "!=");
-			}
-			else
-			{
-				myGeneratedElement = new PrefixExpression("!", new MethodCallExpression(new StaticTypeQualifiedExpression(TypeName.get(Objects.class), "equals"), Arrays.asList(leftGen, rightGen)));
-			}
-
-			return;
-		}
-
-		if (operationToken == KtTokens.EQEQEQ)
-		{
-			myGeneratedElement = new BinaryExpression(leftGen, rightGen, "==");
-			return;
-		}
-
-		if (operationToken == KtTokens.EXCLEQEQEQ)
-		{
-			myGeneratedElement = new BinaryExpression(leftGen, rightGen, "!=");
-			return;
-		}
-
-		if (operationToken == KtTokens.ELVIS)
-		{
-			BinaryExpression condition = new BinaryExpression(leftGen, new ConstantExpression("null"), "==");
-			myGeneratedElement = new TernaryExpression(condition, rightGen, leftGen);
-			return;
-		}
-
-		ResolvedCall<? extends CallableDescriptor> call = ResolutionUtils.resolveToCall(expression, BodyResolveMode.FULL);
-
-		if (call == null && leftExpr != null)
-		{
-			ResolvedCall<? extends CallableDescriptor> leftCall = ResolutionUtils.resolveToCall(leftExpr, BodyResolveMode.FULL);
-
-			DeclarationDescriptor leftResult = leftCall == null ? null : leftCall.getCandidateDescriptor();
-
-			if (leftResult instanceof PropertyDescriptor)
-			{
-				PropertySetterDescriptor setter = ((PropertyDescriptor) leftResult).getSetter();
-
-				if (setter == null || ((PropertyDescriptor) leftResult).getVisibility() == DescriptorVisibilities.PRIVATE && !((PropertyDescriptor) leftResult).isConst())
-				{
-					myGeneratedElement = new AssignExpression(convertNonnull(leftExpr), rightGen);
-				}
-				else
-				{
-					String setMethodName = "set" + StringUtil.capitalize(leftResult.getName().asString());
-					if (leftResult instanceof SyntheticJavaPropertyDescriptor)
-					{
-						FunctionDescriptor setMethod = ((SyntheticJavaPropertyDescriptor) leftResult).getSetMethod();
-
-						if (setMethod != null)
-						{
-							setMethodName = setMethod.getName().asString();
-						}
-					}
-
-
-					MethodCallExpression callExpr = new MethodCallExpression(new ReferenceExpression(setMethodName), Arrays.asList(rightGen));
-
-					if (leftGen instanceof QualifiedExpression)
-					{
-						GeneratedElement left = ((QualifiedExpression) leftGen).getLeft();
-
-						myGeneratedElement = new QualifiedExpression(left, callExpr);
-					}
-					else
-					{
-						myGeneratedElement = callExpr;
-					}
-				}
-			}
-		}
-		else if (call != null)
-		{
-			CallableDescriptor descriptor = call.getCandidateDescriptor();
-			String bitOperator = BitExpressionHelper.remapToBitExpression(descriptor);
-			if (bitOperator != null)
-			{
-				myGeneratedElement = new BinaryExpression(leftGen, rightGen, bitOperator);
-			}
-			else if (operationToken == KtTokens.IN_KEYWORD)
-			{
-				// collection.contains(!)
-				QualifiedExpression ref = new QualifiedExpression(rightGen, new ReferenceExpression(descriptor.getName().toString()));
-				myGeneratedElement = new MethodCallExpression(ref, List.of(leftGen));
-			}
-			else
-			{
-				QualifiedExpression ref = new QualifiedExpression(leftGen, new ReferenceExpression(descriptor.getName().toString()));
-				myGeneratedElement = new MethodCallExpression(ref, List.of(rightGen));
-			}
-		}
-
-		if (myGeneratedElement != null)
-		{
-			return;
-		}
-
-		if (operationToken == KtTokens.EQ)
-		{
-			myGeneratedElement = new AssignExpression(leftGen, rightGen);
-			return;
-		}
-
-		String text = expression.getOperationReference().getText();
-
-		myGeneratedElement = new BinaryExpression(leftGen, rightGen, text);
+		// FIXME make it better
+		myGeneratedElement = new KtBinaryExpressionAnalyzer().analyze(expression, myContext);
 	}
 
 	@Override

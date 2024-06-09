@@ -3,6 +3,7 @@ package consulo.internal.mjga.idea.convert;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.PsiElement;
 import consulo.internal.mjga.idea.convert.generate.JavaSourceClassType;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import org.jetbrains.annotations.NotNull;
@@ -96,5 +97,11 @@ public class ConvertContext
 		{
 			binder.accept(classBinder);
 		}
+	}
+
+	@NotNull
+	public GeneratedElement convertExpression(PsiElement psiElement)
+	{
+		return ExpressionConveter.convertNonnull(psiElement, this);
 	}
 }
