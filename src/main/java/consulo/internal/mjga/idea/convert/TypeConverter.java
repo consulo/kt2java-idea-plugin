@@ -46,6 +46,7 @@ public class TypeConverter
 
 	static
 	{
+		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.Collection"), ClassName.get(Collection.class));
 		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.MutableSet"), ClassName.get(Set.class));
 		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.Set"), ClassName.get(Set.class));
 		ourDefaultRemaper.put(ClassName.bestGuess("kotlin.collections.List"), ClassName.get(List.class));

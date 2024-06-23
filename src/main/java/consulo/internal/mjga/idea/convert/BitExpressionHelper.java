@@ -31,6 +31,10 @@ public class BitExpressionHelper
 		ourBitFuncNames.put("shr", ">>");
 		ourBitFuncNames.put("ushr", ">>>");
 		ourBitFuncNames.put("inv", "~");
+		ourBitFuncNames.put("plus", "+");
+		ourBitFuncNames.put("minus", "-");
+		ourBitFuncNames.put("div", "/");
+		ourBitFuncNames.put("mul", "*");
 	}
 
 	private static final Set<String> ourPrimitives = ContainerUtil.newHashSet("kotlin.Int");

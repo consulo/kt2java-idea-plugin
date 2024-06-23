@@ -10,10 +10,4 @@
 			<add-to-group anchor="last" group-id="ProjectViewPopupMenu"/>
 		</action>
 	</actions>
-
-	<extensions defaultExtensionNs="com.intellij">
-		<toolWindow id="JavaCode" anchor="right" icon="AllIcons.Toolwindows.ToolWindowRun"
-					factoryClass="consulo.internal.mjga.idea.toolWindow.JavaToolWindowFactory"/>
-
-	</extensions>
 </idea-plugin>

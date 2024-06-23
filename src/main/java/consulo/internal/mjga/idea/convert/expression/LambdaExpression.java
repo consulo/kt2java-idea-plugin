@@ -24,6 +24,11 @@ public class LambdaExpression extends Expression
 		myBlock = block;
 	}
 
+	public GeneratedElement getBlock()
+	{
+		return myBlock;
+	}
+
 	@Override
 	public CodeBlock generate(boolean needNewLine)
 	{

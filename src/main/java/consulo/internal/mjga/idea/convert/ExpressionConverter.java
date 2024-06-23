@@ -1,18 +1,20 @@
 package consulo.internal.mjga.idea.convert;
 
 import com.intellij.openapi.util.Couple;
-import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiRecursiveElementWalkingVisitor;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.containers.ContainerUtil;
-import com.squareup.javapoet.*;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
 import consulo.internal.mjga.idea.convert.expression.*;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.kotlinExp.KtBinaryExpressionAnalyzer;
 import consulo.internal.mjga.idea.convert.kotlinExp.KtDotQualifiedExpressionAnalyzer;
+import consulo.internal.mjga.idea.convert.kotlinExp.KtLambdaExpressionAnalyzer;
 import consulo.internal.mjga.idea.convert.library.PackageFunctionRemapTables;
 import consulo.internal.mjga.idea.convert.statement.*;
 import org.jetbrains.annotations.NotNull;
@@ -34,9 +36,7 @@ import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedValueArgument;
 import org.jetbrains.kotlin.resolve.calls.smartcasts.ExplicitSmartCasts;
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode;
-import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.kotlin.resolve.sam.SamConstructorDescriptor;
-import org.jetbrains.kotlin.resolve.source.KotlinSourceElement;
 import org.jetbrains.kotlin.resolve.source.PsiSourceFile;
 import org.jetbrains.kotlin.synthetic.SyntheticJavaPropertyDescriptor;
 import org.jetbrains.kotlin.types.KotlinType;
@@ -837,57 +837,6 @@ public class ExpressionConverter extends KtVisitorVoid
 	@Override
 	public void visitLambdaExpression(KtLambdaExpression lambdaExpression)
 	{
-		List<KtParameter> valueParameters = lambdaExpression.getValueParameters();
-
-		BindingContext context = ResolutionUtils.analyze(lambdaExpression);
-
-		List<Pair<TypeName, String>> params = new ArrayList<>();
-		for (KtParameter valueParameter : valueParameters)
-		{
-			params.add(Pair.create(null, valueParameter.getName()));
-		}
-
-		KtBlockExpression bodyExpression = lambdaExpression.getBodyExpression();
-
-		if (valueParameters.isEmpty())
-		{
-			ValueParameterDescriptor[] foundIt = new ValueParameterDescriptor[1];
-			bodyExpression.accept(new PsiRecursiveElementWalkingVisitor()
-			{
-				@Override
-				public void visitElement(PsiElement element)
-				{
-					if (element instanceof KtSimpleNameExpression)
-					{
-						DeclarationDescriptor declarationDescriptor = (context.get(BindingContext.REFERENCE_TARGET, (KtSimpleNameExpression) element));
-						if (declarationDescriptor instanceof ValueParameterDescriptor)
-						{
-							if (context.get(BindingContext.AUTO_CREATED_IT, (ValueParameterDescriptor) declarationDescriptor) == true)
-							{
-								foundIt[0] = (ValueParameterDescriptor) declarationDescriptor;
-								stopWalking();
-							}
-						}
-					}
-					else if (element instanceof KtLambdaExpression)
-					{
-						stopWalking();
-					}
-					else
-					{
-						super.visitElement(element);
-					}
-				}
-			});
-
-			if (foundIt[0] != null)
-			{
-				params.add(Pair.create(null, foundIt[0].getName().toString()));
-			}
-		}
-
-		@NotNull GeneratedElement body = convertNonnull(bodyExpression);
-
-		myGeneratedElement = new LambdaExpression(params, body);
+		myGeneratedElement = new KtLambdaExpressionAnalyzer().analyze(lambdaExpression, myContext);
 	}
 }
