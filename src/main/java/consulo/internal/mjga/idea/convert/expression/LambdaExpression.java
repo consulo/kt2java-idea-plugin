@@ -5,6 +5,7 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
 import consulo.internal.mjga.idea.convert.statement.BlockStatement;
+import consulo.internal.mjga.idea.convert.statement.Statement;
 
 import java.util.List;
 
@@ -73,13 +74,21 @@ public class LambdaExpression extends Expression
 			paramsBuilder.append(") ->");
 		}
 
-		if(myBlock instanceof BlockStatement)
+		if(myBlock instanceof Statement statement)
 		{
 			builder.beginControlFlow(paramsBuilder.toString());
-			for(GeneratedElement element : ((BlockStatement) myBlock).getGeneratedElements())
+			if(myBlock instanceof BlockStatement blockStatement)
 			{
-				builder.addStatement(element.wantSemicolon(false).generate(false));
+				for(GeneratedElement element : ((BlockStatement) myBlock).getGeneratedElements())
+				{
+					builder.addStatement(element.wantSemicolon(false).generate(false));
+				}
 			}
+			else
+			{
+				builder.addStatement(statement.wantSemicolon(false).generate(false));
+			}
+
 			// this fix for 'endControlFlow()' we don't need new line
 			//		public Builder endControlFlow ()
 			//		{

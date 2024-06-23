@@ -18,6 +18,7 @@ import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.squareup.javapoet.*;
 import consulo.internal.mjga.idea.convert.expression.MethodCallExpression;
+import consulo.internal.mjga.idea.convert.expression.StaticTypeQualifiedExpression;
 import consulo.internal.mjga.idea.convert.expression.SuperExpression;
 import consulo.internal.mjga.idea.convert.generate.KtToJavaClassBinder;
 import consulo.internal.mjga.idea.convert.statement.ExpressionStatement;
@@ -49,6 +50,8 @@ import java.util.stream.Collectors;
  */
 public class MemberConverter
 {
+	public static final TypeName KOTLIN_UNIT = ClassName.get("kotlin", "Unit");
+
 	private static final Class[] ourNullableAnnotations = {
 			NotNull.class,
 			Nullable.class
@@ -390,6 +393,8 @@ public class MemberConverter
 		{
 			hasAnyChild = true;
 
+			boolean isVoid = PsiTypes.voidType().equals(methodOrConstructor.getReturnType());
+
 			KtValVarKeywordOwner ktPropertyOrParameter = null;
 			KtDeclarationWithBody ktDeclarationWithBody = null;
 			if (methodOrConstructor instanceof KtUltraLightMethodForSourceDeclaration)
@@ -468,7 +473,7 @@ public class MemberConverter
 
 				if (ktDeclarationWithBody != null)
 				{
-					setBody(methodBuilder, ktDeclarationWithBody, context);
+					setBody(methodBuilder, ktDeclarationWithBody, context, isVoid);
 				}
 				else if (ktPropertyOrParameter != null && !methodOrConstructor.hasModifier(JvmModifier.ABSTRACT))
 				{
@@ -484,7 +489,7 @@ public class MemberConverter
 							{
 								wantDefault = false;
 
-								setBody(methodBuilder, getter, context);
+								setBody(methodBuilder, getter, context, false);
 							}
 						}
 
@@ -503,7 +508,7 @@ public class MemberConverter
 							{
 								wantDefault = false;
 
-								setBody(methodBuilder, setter, context);
+								setBody(methodBuilder, setter, context, false);
 							}
 						}
 
@@ -662,7 +667,7 @@ public class MemberConverter
 		return hasAnyChild;
 	}
 
-	private static void setBody(MethodSpec.Builder methodBuilder, KtDeclarationWithBody declarationWithBody, ConvertContext context)
+	private static void setBody(MethodSpec.Builder methodBuilder, KtDeclarationWithBody declarationWithBody, ConvertContext context, boolean isVoid)
 	{
 		KtElement body = declarationWithBody.getBodyBlockExpression();
 		if (body == null)
@@ -678,6 +683,11 @@ public class MemberConverter
 		}
 		else
 		{
+			if(isVoid && isUnitReturn(generatedElement))
+			{
+				return;
+			}
+
 			inner = new ReturnStatement(generatedElement).wantSemicolon(true);
 		}
 
@@ -688,6 +698,20 @@ public class MemberConverter
 //		TryCatchStatement statement = new TryCatchStatement(inner, list);
 
 		methodBuilder.addCode(inner.generate());
+	}
+
+	private static boolean isUnitReturn(GeneratedElement element)
+	{
+		if(element instanceof StaticTypeQualifiedExpression qualifiedExpression)
+		{
+			TypeName typeName = qualifiedExpression.getTypeName();
+			if(KOTLIN_UNIT.equals(typeName))
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	public static String safeName(String name)
