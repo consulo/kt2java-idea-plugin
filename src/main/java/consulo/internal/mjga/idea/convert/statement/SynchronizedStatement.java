@@ -23,7 +23,8 @@ public class SynchronizedStatement extends Statement
 	{
 		CodeBlock.Builder builder = CodeBlock.builder();
 		builder.beginControlFlow("synchronized($L)", myTarget.generate());
-		builder.add(myBody.generate());
+		myBody.wantSemicolon(true);
+		builder.add(myBody.generate(needNewLine));
 		builder.endControlFlow();
 		return builder.build();
 	}

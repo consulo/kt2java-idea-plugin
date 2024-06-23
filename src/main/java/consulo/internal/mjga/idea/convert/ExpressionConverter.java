@@ -545,7 +545,9 @@ public class ExpressionConverter extends KtVisitorVoid
 
 			KtBlockExpression bodyExpression = lambdaExpression.getBodyExpression();
 
-			myGeneratedElement = new LambdaExpression(List.of(), convertNonnull(bodyExpression));
+			List<KtExpression> statements = bodyExpression.getStatements();
+			KtExpression body = statements.size() == 1 ? statements.get(0) : bodyExpression;
+			myGeneratedElement = new LambdaExpression(List.of(), convertNonnull(body));
 		}
 		else if (resultingDescriptor instanceof ClassConstructorDescriptor || resultingDescriptor instanceof TypeAliasConstructorDescriptor)
 		{

@@ -7,14 +7,10 @@ import com.squareup.javapoet.TypeName;
 import consulo.internal.mjga.idea.convert.ConvertContext;
 import consulo.internal.mjga.idea.convert.GeneratedElement;
 import consulo.internal.mjga.idea.convert.expression.LambdaExpression;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor;
 import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor;
 import org.jetbrains.kotlin.idea.caches.resolve.ResolutionUtils;
-import org.jetbrains.kotlin.psi.KtBlockExpression;
-import org.jetbrains.kotlin.psi.KtLambdaExpression;
-import org.jetbrains.kotlin.psi.KtParameter;
-import org.jetbrains.kotlin.psi.KtSimpleNameExpression;
+import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.BindingContext;
 
 import java.util.ArrayList;
@@ -78,7 +74,16 @@ public class KtLambdaExpressionAnalyzer extends KtExpressionAnalyzer<KtLambdaExp
 			}
 		}
 
-		@NotNull GeneratedElement body = convertContext.convertExpression(bodyExpression);
+		GeneratedElement body;
+		List<KtExpression> statements = bodyExpression.getStatements();
+		if(statements.size() == 1)
+		{
+			body = convertContext.convertExpression(statements.get(0));
+		}
+		else
+		{
+			body = convertContext.convertExpression(bodyExpression);
+		}
 
 		return new LambdaExpression(params, body);
 	}
