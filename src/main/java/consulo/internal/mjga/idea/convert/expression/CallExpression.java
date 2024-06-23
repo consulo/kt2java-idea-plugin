@@ -12,9 +12,9 @@ import java.util.stream.Collectors;
  */
 public abstract class CallExpression extends Expression
 {
-	private GeneratedElement myCall;
+	protected GeneratedElement myCall;
 
-	private List<GeneratedElement> myArguments;
+	protected List<GeneratedElement> myArguments;
 
 	public CallExpression(GeneratedElement call, List<GeneratedElement> arguments)
 	{

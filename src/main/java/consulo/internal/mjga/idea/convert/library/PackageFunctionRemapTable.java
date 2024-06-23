@@ -149,6 +149,29 @@ public enum PackageFunctionRemapTable
 						}
 					};
 				}
+			},
+	kotlin_collections__filter()
+			{
+				@Override
+				public GeneratedElement generate(ResolvedCall<? extends CallableDescriptor> resolvedCall, List<GeneratedElement> args)
+				{
+					// fake exp
+					return new MethodCallExpression(new ReferenceExpression("filter"), args)
+					{
+						@Override
+						public Expression modifyToByExtensionCall(GeneratedElement receiverGenerate, TypeName qualifiedType)
+						{
+							GeneratedElement lambdaExpr = myArguments.get(0);
+							// list.filter { lambda }
+							// to
+							// list.stream().filter({}).toList()
+
+							MethodCallExpression stream = new MethodCallExpression(new QualifiedExpression(receiverGenerate, new ReferenceExpression("stream")), List.of());
+							MethodCallExpression filter = new MethodCallExpression(new QualifiedExpression(stream, new ReferenceExpression("filter")), List.of(lambdaExpr));
+							return new MethodCallExpression(new QualifiedExpression(filter, new ReferenceExpression("toList")), List.of());
+						}
+					};
+				}
 			};
 
 	private final FqName myPackageName;
