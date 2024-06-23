@@ -6,7 +6,7 @@
 	<depends>org.jetbrains.kotlin</depends>
 	<idea-version since-build="213"/>
 	<description>
-		Kotlin to Java converter
+		Kotlin to Java converter Try right click in Project View at Kotlin file, and click Convert Kotlin to Java File
 	</description>
 	<actions>
 		<action id="MJGA.ConvertToJavaAction" class="consulo.internal.mjga.idea.actions.ConvertToJavaAction">
