@@ -93,17 +93,7 @@ public class KtDotQualifiedExpressionAnalyzer extends KtExpressionAnalyzer<KtDot
 				// ignore syntetic java properties, they mapped as extension
 				if (!(candidateDescriptor instanceof SyntheticJavaPropertyDescriptor))
 				{
-					if (targetSelector instanceof MethodCallExpression)
-					{
-						GeneratedElement oldCall = ((MethodCallExpression) targetSelector).getCall();
-						List<GeneratedElement> oldArguments = ((MethodCallExpression) targetSelector).getArguments();
-
-						ArrayList<GeneratedElement> newArgs = new ArrayList<>(oldArguments);
-						newArgs.add(0, receiverGenerate);
-
-						MethodCallExpression newCall = new MethodCallExpression(oldCall, newArgs);
-						result = qualifiedType == null ? newCall : new StaticTypeQualifiedExpression(qualifiedType, newCall);
-					}
+					result = targetSelector.modifyToByExtensionCall(receiverGenerate, qualifiedType);
 				}
 			}
 		}

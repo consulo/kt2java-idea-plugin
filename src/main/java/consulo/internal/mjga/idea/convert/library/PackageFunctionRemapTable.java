@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
 import org.jetbrains.kotlin.types.KotlinType;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -118,7 +119,37 @@ public enum PackageFunctionRemapTable
 					return new SynchronizedStatement(args.get(0), data);
 				}
 			},
-	;
+	kotlin_collections__toList()
+			{
+				@Override
+				public GeneratedElement generate(ResolvedCall<? extends CallableDescriptor> resolvedCall, List<GeneratedElement> args)
+				{
+					return new NewExpression(TypeName.get(ArrayList.class), List.of())
+					{
+						@Override
+						public GeneratedElement modifyToByExtensionCall(GeneratedElement receiverGenerate, TypeName qualifiedType)
+						{
+							return new NewExpression(myTypeName, myTypeArguments, List.of(receiverGenerate));
+						}
+					};
+				}
+			},
+	kotlin_collections__removeAll()
+			{
+				@Override
+				public GeneratedElement generate(ResolvedCall<? extends CallableDescriptor> resolvedCall, List<GeneratedElement> args)
+				{
+					return new MethodCallExpression(new ReferenceExpression("removeIf"), args)
+					{
+						@Override
+						public Expression modifyToByExtensionCall(GeneratedElement receiverGenerate, TypeName qualifiedType)
+						{
+							// just remap to files.removeIf(it ->{}), do not try create removeIf(files, it ->{})
+							return new QualifiedExpression(receiverGenerate, this);
+						}
+					};
+				}
+			};
 
 	private final FqName myPackageName;
 	private final Name myFunctionName;

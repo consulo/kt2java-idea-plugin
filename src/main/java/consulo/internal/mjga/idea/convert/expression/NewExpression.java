@@ -15,9 +15,9 @@ import java.util.stream.Collectors;
  */
 public class NewExpression extends Expression
 {
-	private final TypeName myTypeName;
-	private final List<GeneratedElement> myArguments;
-	private final List<TypeName> myTypeArguments;
+	protected final TypeName myTypeName;
+	protected final List<GeneratedElement> myArguments;
+	protected final List<TypeName> myTypeArguments;
 
 	public NewExpression(TypeName typeName, List<GeneratedElement> arguments)
 	{
